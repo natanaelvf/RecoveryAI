@@ -1,0 +1,337 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '../providers/contractor_provider.dart';
+import '../theme/app_colors.dart';
+import '../widgets/day_toggle_row.dart';
+import '../widgets/usage_bar.dart';
+
+/// Settings screen — business info, working hours, recovery settings, account.
+class SettingsScreen extends ConsumerStatefulWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  late TextEditingController _businessNameController;
+  late TextEditingController _contactNameController;
+  late TextEditingController _contactEmailController;
+  late TextEditingController _contactPhoneController;
+  late TextEditingController _urgentThresholdController;
+  late TextEditingController _normalThresholdController;
+  late TextEditingController _defaultValueController;
+  late TextEditingController _calendlyController;
+  late List<int> _workingDays;
+  late TimeOfDay _startTime;
+  late TimeOfDay _endTime;
+
+  @override
+  void initState() {
+    super.initState();
+    final c = ref.read(contractorProvider).contractor;
+    _businessNameController = TextEditingController(text: c.businessName);
+    _contactNameController = TextEditingController(text: c.contactName);
+    _contactEmailController = TextEditingController(text: c.contactEmail);
+    _contactPhoneController = TextEditingController(text: c.contactPhone);
+    _urgentThresholdController =
+        TextEditingController(text: c.urgencyThresholdUrgentMin.toString());
+    _normalThresholdController =
+        TextEditingController(text: c.urgencyThresholdNormalMin.toString());
+    _defaultValueController =
+        TextEditingController(text: c.defaultJobValue?.toInt().toString() ?? '350');
+    _calendlyController = TextEditingController(text: c.calendlyUrl ?? '');
+    _workingDays = List.from(c.workingDays);
+
+    final startParts = c.workingHoursStart.split(':');
+    _startTime = TimeOfDay(
+      hour: int.parse(startParts[0]),
+      minute: int.parse(startParts[1]),
+    );
+    final endParts = c.workingHoursEnd.split(':');
+    _endTime = TimeOfDay(
+      hour: int.parse(endParts[0]),
+      minute: int.parse(endParts[1]),
+    );
+  }
+
+  @override
+  void dispose() {
+    _businessNameController.dispose();
+    _contactNameController.dispose();
+    _contactEmailController.dispose();
+    _contactPhoneController.dispose();
+    _urgentThresholdController.dispose();
+    _normalThresholdController.dispose();
+    _defaultValueController.dispose();
+    _calendlyController.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    ref.read(contractorProvider).updateSettings(
+          businessName: _businessNameController.text,
+          contactName: _contactNameController.text,
+          contactEmail: _contactEmailController.text,
+          contactPhone: _contactPhoneController.text,
+          workingDays: _workingDays,
+          workingHoursStart:
+              '${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}',
+          workingHoursEnd:
+              '${_endTime.hour.toString().padLeft(2, '0')}:${_endTime.minute.toString().padLeft(2, '0')}',
+          urgencyThresholdUrgentMin:
+              int.tryParse(_urgentThresholdController.text) ?? 60,
+          urgencyThresholdNormalMin:
+              int.tryParse(_normalThresholdController.text) ?? 1440,
+          defaultJobValue:
+              double.tryParse(_defaultValueController.text) ?? 350,
+          calendlyUrl: _calendlyController.text,
+        );
+
+    final l10n = AppLocalizations.of(context)!;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.toastSettingsSaved)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final c = ref.watch(contractorProvider).contractor;
+    final smsPercent = c.smsUsagePercent;
+    final smsWarning = smsPercent > 0.8;
+
+    final dayLabels = [
+      l10n.dayMon, l10n.dayTue, l10n.dayWed,
+      l10n.dayThu, l10n.dayFri, l10n.daySat, l10n.daySun,
+    ];
+
+    return Scaffold(
+      backgroundColor: AppColors.bgBase,
+      appBar: AppBar(
+        title: Text(l10n.settingsTitle),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ElevatedButton(
+              onPressed: _save,
+              child: Text(l10n.settingsSave),
+            ),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // Business Info
+          _SectionHeader(title: l10n.settingsBusinessInfo),
+          const SizedBox(height: 8),
+          _FormField(label: l10n.settingsBusinessName, controller: _businessNameController),
+          _FormField(label: l10n.settingsContactName, controller: _contactNameController),
+          _FormField(label: l10n.settingsContactEmail, controller: _contactEmailController, keyboardType: TextInputType.emailAddress),
+          _FormField(label: l10n.settingsContactPhone, controller: _contactPhoneController, keyboardType: TextInputType.phone),
+
+          const SizedBox(height: 24),
+
+          // Working Hours
+          _SectionHeader(title: l10n.settingsWorkingHours),
+          const SizedBox(height: 8),
+          Text(
+            l10n.settingsWorkingDays.toUpperCase(),
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+          const SizedBox(height: 8),
+          DayToggleRow(
+            selectedDays: _workingDays,
+            dayLabels: dayLabels,
+            onChanged: (days) => setState(() => _workingDays = days),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _TimePickerField(
+                  label: l10n.settingsStartTime,
+                  time: _startTime,
+                  onChanged: (t) => setState(() => _startTime = t),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _TimePickerField(
+                  label: l10n.settingsEndTime,
+                  time: _endTime,
+                  onChanged: (t) => setState(() => _endTime = t),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+
+          // Recovery Settings
+          _SectionHeader(title: l10n.settingsRecovery),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: _FormField(label: l10n.settingsUrgentThreshold, controller: _urgentThresholdController, keyboardType: TextInputType.number)),
+              const SizedBox(width: 12),
+              Expanded(child: _FormField(label: l10n.settingsNormalThreshold, controller: _normalThresholdController, keyboardType: TextInputType.number)),
+            ],
+          ),
+          Row(
+            children: [
+              Expanded(child: _FormField(label: l10n.settingsDefaultJobValue, controller: _defaultValueController, keyboardType: TextInputType.number)),
+              const SizedBox(width: 12),
+              Expanded(child: _FormField(label: l10n.settingsCalendlyUrl, controller: _calendlyController, keyboardType: TextInputType.url)),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+
+          // Account
+          _SectionHeader(title: l10n.settingsAccount),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.bgSurface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.borderSubtle),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Tier
+                Text(l10n.settingsTier.toUpperCase(), style: Theme.of(context).textTheme.labelSmall),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.accentSuccess.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        c.tier.toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.accentSuccess,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      '${c.tierPrice}/mo',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // SMS usage
+                Text(l10n.settingsSmsUsage.toUpperCase(), style: Theme.of(context).textTheme.labelSmall),
+                const SizedBox(height: 6),
+                Text(
+                  l10n.settingsSmsUsedOf(c.smsUsedThisMonth, c.monthlySMSCap),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 8),
+                UsageBar(percent: smsPercent, warning: smsWarning),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  const _SectionHeader({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title.toUpperCase(),
+      style: Theme.of(context).textTheme.headlineMedium,
+    );
+  }
+}
+
+class _FormField extends StatelessWidget {
+  final String label;
+  final TextEditingController controller;
+  final TextInputType keyboardType;
+
+  const _FormField({
+    required this.label,
+    required this.controller,
+    this.keyboardType = TextInputType.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label.toUpperCase(), style: Theme.of(context).textTheme.labelSmall),
+          const SizedBox(height: 6),
+          TextField(controller: controller, keyboardType: keyboardType),
+        ],
+      ),
+    );
+  }
+}
+
+class _TimePickerField extends StatelessWidget {
+  final String label;
+  final TimeOfDay time;
+  final ValueChanged<TimeOfDay> onChanged;
+
+  const _TimePickerField({
+    required this.label,
+    required this.time,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label.toUpperCase(), style: Theme.of(context).textTheme.labelSmall),
+        const SizedBox(height: 6),
+        GestureDetector(
+          onTap: () async {
+            final picked = await showTimePicker(
+              context: context,
+              initialTime: time,
+            );
+            if (picked != null) onChanged(picked);
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.bgInput,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.borderSubtle),
+            ),
+            child: Text(
+              '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}

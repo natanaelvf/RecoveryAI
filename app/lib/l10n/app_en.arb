@@ -1,0 +1,167 @@
+{
+  "@@locale": "en",
+  "appName": "Recovery",
+  "appNameHighlight": "AI",
+  "appTagline": "Missed calls recovered. Revenue restored.",
+
+  "navDashboard": "Dashboard",
+  "navLeads": "Leads",
+  "navSettings": "Settings",
+  "navProfile": "Profile",
+  "navLogout": "Log Out",
+
+  "loginTitle": "Recovery",
+  "loginTitleHighlight": "AI",
+  "loginSubtitle": "Contractor Dashboard",
+  "loginEmailLabel": "Email",
+  "loginEmailPlaceholder": "you@company.fi",
+  "loginPasswordLabel": "Password",
+  "loginPasswordPlaceholder": "Enter your password",
+  "loginSubmit": "Sign In",
+  "loginForgot": "Forgot password?",
+
+  "dashboardTitle": "Dashboard",
+  "dashboardRecoveredRevenue": "Recovered Revenue",
+  "dashboardLeadsRecovered": "Leads Recovered",
+  "dashboardRecoveryRate": "Recovery Rate",
+  "dashboardAvgResponseTime": "Avg Response Time",
+  "dashboardRevenueChartTitle": "Revenue — Last 30 Days",
+  "dashboardRecentWins": "Recent Wins",
+  "dashboardNoWinsYet": "No completed leads yet",
+  "dashboardThisMonth": "this month",
+  "dashboardTrendUp": "vs last month",
+
+  "leadsTitle": "Leads",
+  "leadsSearchPlaceholder": "Search by name or phone...",
+  "leadsFilterAll": "All",
+  "leadsFilterMissed": "Missed",
+  "leadsFilterContacted": "Contacted",
+  "leadsFilterBooked": "Booked",
+  "leadsFilterCompleted": "Completed",
+  "leadsCalledTimes": "Called {count}x",
+  "@leadsCalledTimes": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "leadsEmptyTitle": "No leads yet",
+  "leadsEmptyDesc": "Missed calls will appear here automatically",
+  "leadsNoResults": "No leads match your filters",
+
+  "leadDetailBack": "Back to leads",
+  "leadDetailPhone": "Phone",
+  "leadDetailName": "Name",
+  "leadDetailStatus": "Status",
+  "leadDetailUrgency": "Urgency",
+  "leadDetailCreated": "Created",
+  "leadDetailBookingTime": "Booking",
+  "leadDetailEstimatedValue": "Est. Value",
+  "leadDetailCallCount": "Call Count",
+  "leadDetailSatisfaction": "Satisfaction",
+  "leadDetailConversation": "Conversation",
+  "leadDetailNoMessages": "No messages yet",
+  "leadDetailMarkComplete": "Mark Complete",
+  "leadDetailCallLead": "Call Lead",
+  "leadDetailAddNote": "Add Note",
+  "leadDetailAfterHours": "After Hours",
+  "leadDetailIssue": "Issue",
+  "leadDetailFeedback": "Feedback",
+  "leadDetailLeadInfo": "Lead Info",
+
+  "settingsTitle": "Settings",
+  "settingsBusinessInfo": "Business Information",
+  "settingsBusinessName": "Business Name",
+  "settingsContactName": "Contact Name",
+  "settingsContactEmail": "Contact Email",
+  "settingsContactPhone": "Contact Phone",
+  "settingsTradeType": "Trade Type",
+  "settingsWorkingHours": "Working Hours",
+  "settingsWorkingDays": "Working Days",
+  "settingsStartTime": "Start Time",
+  "settingsEndTime": "End Time",
+  "settingsRecovery": "Recovery Settings",
+  "settingsUrgentThreshold": "Urgent Threshold (min)",
+  "settingsNormalThreshold": "Normal Threshold (min)",
+  "settingsDefaultJobValue": "Default Job Value (€)",
+  "settingsCalendlyUrl": "Calendly URL",
+  "settingsAccount": "Account",
+  "settingsTier": "Subscription Tier",
+  "settingsSmsUsage": "SMS Usage",
+  "settingsSmsUsedOf": "{used} of {cap} used",
+  "@settingsSmsUsedOf": {
+    "placeholders": {
+      "used": { "type": "int" },
+      "cap": { "type": "int" }
+    }
+  },
+  "settingsSave": "Save Changes",
+
+  "profileTitle": "Profile",
+  "profileLanguage": "Language",
+  "profileVersion": "App Version",
+  "profileLogout": "Log Out",
+  "profileLogoutConfirm": "Are you sure you want to log out?",
+
+  "urgencyEmergency": "Emergency",
+  "urgencyHigh": "Urgent",
+  "urgencyMedium": "This Week",
+  "urgencyLow": "Not Urgent",
+  "urgencyUnknown": "Unknown",
+
+  "statusMissed": "Missed",
+  "statusConsentSent": "Consent Sent",
+  "statusOptedIn": "Opted In",
+  "statusQualifying": "Qualifying",
+  "statusBookingSent": "Booking Sent",
+  "statusBooked": "Booked",
+  "statusCompleted": "Completed",
+  "statusFollowedUp": "Followed Up",
+  "statusDnrAlert": "DNR Alert",
+  "statusNoConsent": "No Consent",
+  "statusContacted": "Contacted",
+
+  "dayMon": "Mon",
+  "dayTue": "Tue",
+  "dayWed": "Wed",
+  "dayThu": "Thu",
+  "dayFri": "Fri",
+  "daySat": "Sat",
+  "daySun": "Sun",
+
+  "toastLeadCompleted": "Lead marked as completed!",
+  "toastSettingsSaved": "Settings saved successfully",
+  "toastNewLead": "New missed call from {phone}",
+  "@toastNewLead": {
+    "placeholders": {
+      "phone": { "type": "String" }
+    }
+  },
+
+  "timeJustNow": "Just now",
+  "timeMinutesAgo": "{count}m ago",
+  "@timeMinutesAgo": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "timeHoursAgo": "{count}h ago",
+  "@timeHoursAgo": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "timeDaysAgo": "{count}d ago",
+  "@timeDaysAgo": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "timeWeeksAgo": "{count}w ago",
+  "@timeWeeksAgo": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "waitingForResponse": "Waiting for response..."
+}
