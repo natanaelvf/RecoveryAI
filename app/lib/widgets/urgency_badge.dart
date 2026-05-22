@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:missed_lead_recovery/l10n/generated/app_localizations.dart';
 import '../theme/app_colors.dart';
 import '../models/lead.dart';
 
@@ -12,33 +12,35 @@ class UrgencyBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final colors = AppColors.of(context);
+    final color = _getColor(colors);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: _bgColor.withValues(alpha: 0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _bgColor.withValues(alpha: 0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(
         _label(l10n),
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,
-          color: _bgColor,
+          color: color,
           letterSpacing: 0.3,
         ),
       ),
     );
   }
 
-  Color get _bgColor {
+  Color _getColor(AppColors colors) {
     switch (urgency) {
-      case Urgency.emergency: return AppColors.urgencyEmergency;
-      case Urgency.high: return AppColors.urgencyHigh;
-      case Urgency.medium: return AppColors.urgencyMedium;
-      case Urgency.low: return AppColors.urgencyLow;
-      case Urgency.unknown: return AppColors.urgencyUnknown;
+      case Urgency.emergency: return colors.urgencyEmergency;
+      case Urgency.high: return colors.urgencyHigh;
+      case Urgency.medium: return colors.urgencyMedium;
+      case Urgency.low: return colors.urgencyLow;
+      case Urgency.unknown: return colors.urgencyUnknown;
     }
   }
 

@@ -14,10 +14,12 @@ class UsageBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+
     return Container(
       height: 6,
       decoration: BoxDecoration(
-        color: AppColors.bgInput,
+        color: colors.bgInput,
         borderRadius: BorderRadius.circular(3),
       ),
       child: FractionallySizedBox(
@@ -27,8 +29,8 @@ class UsageBar extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: warning
-                  ? [AppColors.accentDanger, AppColors.accentPrimary]
-                  : [AppColors.accentPrimary, AppColors.accentSuccess],
+                  ? [colors.accentDanger, colors.accentPrimary]
+                  : [colors.accentPrimary, colors.accentSuccess],
             ),
             borderRadius: BorderRadius.circular(3),
           ),

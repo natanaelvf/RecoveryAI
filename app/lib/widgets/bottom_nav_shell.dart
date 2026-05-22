@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:missed_lead_recovery/l10n/generated/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_colors.dart';
 
@@ -15,13 +15,14 @@ class BottomNavShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final colors = AppColors.of(context);
 
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(
-            top: BorderSide(color: AppColors.borderSubtle, width: 1),
+            top: BorderSide(color: colors.borderSubtle, width: 1),
           ),
         ),
         child: BottomNavigationBar(

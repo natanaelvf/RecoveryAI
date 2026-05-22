@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:missed_lead_recovery/l10n/generated/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/leads_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/lead_card.dart';
 import '../widgets/filter_chip_bar.dart';
+import '../widgets/add_lead_sheet.dart';
 
-/// Leads list screen — search, filter chips, and lead cards.
+/// Leads list screen — search, filter chips, lead cards, and FAB for adding leads.
 class LeadsScreen extends ConsumerWidget {
   const LeadsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
+    final colors = AppColors.of(context);
     final leads = ref.watch(filteredLeadsProvider);
     final counts = ref.watch(leadCountsProvider);
     final selectedFilter = ref.watch(statusFilterProvider);
@@ -28,9 +30,46 @@ class LeadsScreen extends ConsumerWidget {
     ];
 
     return Scaffold(
-      backgroundColor: AppColors.bgBase,
+      backgroundColor: colors.bgBase,
       appBar: AppBar(
         title: Text(l10n.leadsTitle),
+      ),
+      // ── FAB for manual lead input ──────────────
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: colors.bgSurface,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            builder: (ctx) => AddLeadSheet(
+              onSubmit: ({
+                required String phone,
+                String? name,
+                String? description,
+                String urgency = 'medium',
+                double? estimatedValue,
+              }) {
+                ref.read(leadsProvider).addLead(
+                      phone: phone,
+                      name: name,
+                      description: description,
+                      urgency: urgency,
+                      estimatedValue: estimatedValue,
+                    );
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Lead added: $phone'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+            ),
+          );
+        },
+        child: const Icon(Icons.add_rounded),
       ),
       body: Column(
         children: [
@@ -42,7 +81,7 @@ class LeadsScreen extends ConsumerWidget {
                   ref.read(searchQueryProvider.notifier).state = value,
               decoration: InputDecoration(
                 hintText: l10n.leadsSearchPlaceholder,
-                prefixIcon: const Icon(Icons.search, color: AppColors.textTertiary, size: 20),
+                prefixIcon: Icon(Icons.search, color: colors.textTertiary, size: 20),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
             ),

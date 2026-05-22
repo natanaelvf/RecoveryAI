@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:missed_lead_recovery/l10n/generated/app_localizations.dart';
 
 /// Relative time formatting — matches frontend/src/views/leads.js timeAgo()
 String timeAgo(BuildContext context, DateTime date) {

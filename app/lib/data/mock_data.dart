@@ -1,4 +1,5 @@
 import 'dart:math';
+import '../models/activity_event.dart';
 import '../models/contractor.dart';
 import '../models/lead.dart';
 import '../models/message.dart';
@@ -398,3 +399,112 @@ DashboardStats computeStats(List<Lead> leads) {
     avgResponseTime: '12 min',
   );
 }
+
+// ── Pipeline counts ──────────────────────────────────
+Map<String, int> computePipelineCounts(List<Lead> leads) {
+  int missed = 0;
+  int contacted = 0;
+  int booked = 0;
+  int completed = 0;
+
+  for (final lead in leads) {
+    switch (lead.status) {
+      case LeadStatus.missed:
+      case LeadStatus.consentSent:
+      case LeadStatus.dnrAlert:
+      case LeadStatus.noConsent:
+        missed++;
+        break;
+      case LeadStatus.optedIn:
+      case LeadStatus.qualifying:
+      case LeadStatus.qualifyingIssue:
+      case LeadStatus.qualifyingUrgency:
+      case LeadStatus.qualifyingName:
+      case LeadStatus.bookingSent:
+        contacted++;
+        break;
+      case LeadStatus.booked:
+        booked++;
+        break;
+      case LeadStatus.completed:
+      case LeadStatus.followedUp:
+        completed++;
+        break;
+    }
+  }
+
+  return {
+    'missed': missed,
+    'contacted': contacted,
+    'booked': booked,
+    'completed': completed,
+  };
+}
+
+// ── Mock activity events ─────────────────────────────
+
+List<ActivityEvent> generateMockActivityEvents() {
+  return [
+    ActivityEvent(
+      type: ActivityType.newLead,
+      description: 'New lead: +358 40 111 2222',
+      timestamp: DateTime.now().subtract(const Duration(minutes: 15)),
+      leadId: 'lead-003',
+    ),
+    ActivityEvent(
+      type: ActivityType.smsSent,
+      description: 'SMS sent to Mikko Korhonen',
+      timestamp: DateTime.now().subtract(const Duration(minutes: 45)),
+      leadId: 'lead-001',
+    ),
+    ActivityEvent(
+      type: ActivityType.smsSent,
+      description: 'Consent SMS to +358 44 999 0000',
+      timestamp: DateTime.now().subtract(const Duration(hours: 1)),
+      leadId: 'lead-007',
+    ),
+    ActivityEvent(
+      type: ActivityType.bookingConfirmed,
+      description: 'Booking confirmed — Eeva Nieminen',
+      timestamp: DateTime.now().subtract(const Duration(hours: 4)),
+      leadId: 'lead-011',
+    ),
+    ActivityEvent(
+      type: ActivityType.dnrAlert,
+      description: 'DNR alert: Timo Lahtinen — no response',
+      timestamp: DateTime.now().subtract(const Duration(hours: 6)),
+      leadId: 'lead-008',
+    ),
+    ActivityEvent(
+      type: ActivityType.bookingConfirmed,
+      description: 'Booking confirmed — Anna Laine',
+      timestamp: DateTime.now().subtract(const Duration(days: 1, hours: 3)),
+      leadId: 'lead-002',
+    ),
+    ActivityEvent(
+      type: ActivityType.leadCompleted,
+      description: 'Lead completed: Heikki Järvinen',
+      timestamp: DateTime.now().subtract(const Duration(days: 2)),
+      leadId: 'lead-005',
+    ),
+    ActivityEvent(
+      type: ActivityType.satisfactionReceived,
+      description: 'Heikki Järvinen rated 5/5 ⭐',
+      timestamp: DateTime.now().subtract(const Duration(days: 2, hours: 2)),
+      leadId: 'lead-005',
+    ),
+    ActivityEvent(
+      type: ActivityType.leadCompleted,
+      description: 'Lead completed: Sanna Koivisto',
+      timestamp: DateTime.now().subtract(const Duration(days: 4)),
+      leadId: 'lead-006',
+    ),
+    ActivityEvent(
+      type: ActivityType.satisfactionReceived,
+      description: 'Sanna Koivisto rated 4/5',
+      timestamp: DateTime.now().subtract(const Duration(days: 4, hours: 1)),
+      leadId: 'lead-006',
+    ),
+  ];
+}
+

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:missed_lead_recovery/l10n/generated/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
 
@@ -72,9 +72,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final colors = AppColors.of(context);
 
     return Scaffold(
-      backgroundColor: AppColors.bgBase,
+      backgroundColor: colors.bgBase,
       body: Center(
         child: FadeTransition(
           opacity: _fadeAnimation,
@@ -84,9 +85,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               constraints: const BoxConstraints(maxWidth: 400),
               padding: const EdgeInsets.all(28),
               decoration: BoxDecoration(
-                color: AppColors.bgSurface,
+                color: colors.bgSurface,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.borderSubtle),
+                border: Border.all(color: colors.borderSubtle),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.3),
@@ -103,12 +104,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: AppColors.accentPrimaryMuted,
+                      color: colors.accentPrimaryMuted,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.phone_missed_rounded,
-                      color: AppColors.accentPrimary,
+                      color: colors.accentPrimary,
                       size: 28,
                     ),
                   ),
@@ -122,7 +123,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         TextSpan(text: l10n.loginTitle),
                         TextSpan(
                           text: l10n.loginTitleHighlight,
-                          style: const TextStyle(color: AppColors.accentPrimary),
+                          style: TextStyle(color: colors.accentPrimary),
                         ),
                       ],
                     ),
@@ -181,12 +182,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _handleLogin,
                       child: _isLoading
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: AppColors.textInverse,
+                                color: colors.textInverse,
                               ),
                             )
                           : Text(l10n.loginSubmit),
@@ -199,9 +200,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     onPressed: () {},
                     child: Text(
                       l10n.loginForgot,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: AppColors.textTertiary,
+                        color: colors.textTertiary,
                       ),
                     ),
                   ),

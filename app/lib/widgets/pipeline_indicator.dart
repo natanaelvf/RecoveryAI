@@ -18,6 +18,7 @@ class PipelineIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final currentStage = status.pipelineStage;
     const stageCount = 5;
 
@@ -30,7 +31,7 @@ class PipelineIndicator extends StatelessWidget {
           return Expanded(
             child: Container(
               height: connectorHeight,
-              color: isDone ? AppColors.accentSuccess : AppColors.borderSubtle,
+              color: isDone ? colors.accentSuccess : colors.borderSubtle,
             ),
           );
         }
@@ -43,13 +44,13 @@ class PipelineIndicator extends StatelessWidget {
 
         Color color;
         if (isDone) {
-          color = AppColors.accentSuccess;
+          color = colors.accentSuccess;
         } else if (isCurrent && isMissed) {
-          color = AppColors.accentDanger;
+          color = colors.accentDanger;
         } else if (isCurrent) {
-          color = AppColors.accentPrimary;
+          color = colors.accentPrimary;
         } else {
-          color = AppColors.borderSubtle;
+          color = colors.borderSubtle;
         }
 
         return Container(

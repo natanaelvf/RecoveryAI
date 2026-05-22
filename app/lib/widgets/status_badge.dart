@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:missed_lead_recovery/l10n/generated/app_localizations.dart';
 import '../theme/app_colors.dart';
 import '../models/lead.dart';
 
@@ -12,11 +12,13 @@ class StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final colors = AppColors.of(context);
+    final color = _getColor(colors);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: _color.withValues(alpha: 0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -27,7 +29,7 @@ class StatusBadge extends StatelessWidget {
             height: 6,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: _color,
+              color: color,
             ),
           ),
           const SizedBox(width: 5),
@@ -36,7 +38,7 @@ class StatusBadge extends StatelessWidget {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: _color,
+              color: color,
             ),
           ),
         ],
@@ -44,26 +46,26 @@ class StatusBadge extends StatelessWidget {
     );
   }
 
-  Color get _color {
+  Color _getColor(AppColors colors) {
     switch (status) {
       case LeadStatus.missed:
       case LeadStatus.consentSent:
       case LeadStatus.dnrAlert:
-        return AppColors.statusMissed;
+        return colors.statusMissed;
       case LeadStatus.optedIn:
       case LeadStatus.qualifying:
       case LeadStatus.qualifyingIssue:
       case LeadStatus.qualifyingUrgency:
       case LeadStatus.qualifyingName:
       case LeadStatus.bookingSent:
-        return AppColors.statusActive;
+        return colors.statusActive;
       case LeadStatus.booked:
-        return AppColors.statusBooked;
+        return colors.statusBooked;
       case LeadStatus.completed:
       case LeadStatus.followedUp:
-        return AppColors.statusCompleted;
+        return colors.statusCompleted;
       case LeadStatus.noConsent:
-        return AppColors.statusNoConsent;
+        return colors.statusNoConsent;
     }
   }
 

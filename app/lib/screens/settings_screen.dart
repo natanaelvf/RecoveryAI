@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:missed_lead_recovery/l10n/generated/app_localizations.dart';
 import '../providers/contractor_provider.dart';
+import '../providers/theme_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/day_toggle_row.dart';
 import '../widgets/usage_bar.dart';
 
-/// Settings screen — business info, working hours, recovery settings, account.
+/// Settings screen — business info, working hours, recovery settings, account, theme.
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
@@ -98,9 +99,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final colors = AppColors.of(context);
     final c = ref.watch(contractorProvider).contractor;
     final smsPercent = c.smsUsagePercent;
     final smsWarning = smsPercent > 0.8;
+    final themePref = ref.watch(themePreferenceProvider);
 
     final dayLabels = [
       l10n.dayMon, l10n.dayTue, l10n.dayWed,
@@ -108,7 +111,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ];
 
     return Scaffold(
-      backgroundColor: AppColors.bgBase,
+      backgroundColor: colors.bgBase,
       appBar: AppBar(
         title: Text(l10n.settingsTitle),
         actions: [
@@ -124,6 +127,51 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Theme selector
+          _SectionHeader(title: 'APPEARANCE'),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: colors.bgSurface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: colors.borderSubtle),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('THEME', style: Theme.of(context).textTheme.labelSmall),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    _ThemeOption(
+                      icon: Icons.brightness_auto,
+                      label: 'System',
+                      isSelected: themePref == ThemePreference.system,
+                      onTap: () => ref.read(themePreferenceProvider.notifier).state = ThemePreference.system,
+                    ),
+                    const SizedBox(width: 8),
+                    _ThemeOption(
+                      icon: Icons.dark_mode_rounded,
+                      label: 'Dark',
+                      isSelected: themePref == ThemePreference.dark,
+                      onTap: () => ref.read(themePreferenceProvider.notifier).state = ThemePreference.dark,
+                    ),
+                    const SizedBox(width: 8),
+                    _ThemeOption(
+                      icon: Icons.light_mode_rounded,
+                      label: 'Light',
+                      isSelected: themePref == ThemePreference.light,
+                      onTap: () => ref.read(themePreferenceProvider.notifier).state = ThemePreference.light,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
           // Business Info
           _SectionHeader(title: l10n.settingsBusinessInfo),
           const SizedBox(height: 8),
@@ -196,9 +244,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.bgSurface,
+              color: colors.bgSurface,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.borderSubtle),
+              border: Border.all(color: colors.borderSubtle),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -211,15 +259,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: AppColors.accentSuccess.withValues(alpha: 0.12),
+                        color: colors.accentSuccess.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         c.tier.toUpperCase(),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.accentSuccess,
+                          color: colors.accentSuccess,
                         ),
                       ),
                     ),
@@ -305,6 +353,8 @@ class _TimePickerField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -321,9 +371,9 @@ class _TimePickerField extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: AppColors.bgInput,
+              color: colors.bgInput,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.borderSubtle),
+              border: Border.all(color: colors.borderSubtle),
             ),
             child: Text(
               '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
@@ -332,6 +382,62 @@ class _TimePickerField extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Theme option button — used in the theme selector.
+class _ThemeOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _ThemeOption({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? colors.accentPrimaryMuted : colors.bgElevated,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected ? colors.accentPrimary : colors.borderSubtle,
+              width: isSelected ? 1.5 : 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                icon,
+                size: 22,
+                color: isSelected ? colors.accentPrimary : colors.textTertiary,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected ? colors.accentPrimary : colors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:missed_lead_recovery/l10n/generated/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/leads_provider.dart';
 import '../theme/app_colors.dart';
@@ -21,12 +21,13 @@ class LeadDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
+    final colors = AppColors.of(context);
     final lead = ref.watch(leadByIdProvider(leadId));
     final messages = ref.watch(messagesProvider(leadId));
 
     if (lead == null) {
       return Scaffold(
-        backgroundColor: AppColors.bgBase,
+        backgroundColor: colors.bgBase,
         appBar: AppBar(title: const Text('Lead')),
         body: Center(
           child: Column(
@@ -53,7 +54,7 @@ class LeadDetailScreen extends ConsumerWidget {
     ].contains(lead.status);
 
     return Scaffold(
-      backgroundColor: AppColors.bgBase,
+      backgroundColor: colors.bgBase,
       appBar: AppBar(
         title: Text(lead.displayName),
       ),
@@ -103,7 +104,7 @@ class LeadDetailScreen extends ConsumerWidget {
               child: Text(
                 lead.issueDescription!,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
+                      color: colors.textSecondary,
                     ),
               ),
             ),
@@ -117,7 +118,7 @@ class LeadDetailScreen extends ConsumerWidget {
               child: Text(
                 '"${lead.satisfactionFeedback}"',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
+                      color: colors.textSecondary,
                       fontStyle: FontStyle.italic,
                     ),
               ),
@@ -128,9 +129,9 @@ class LeadDetailScreen extends ConsumerWidget {
           const SizedBox(height: 16),
           Container(
             decoration: BoxDecoration(
-              color: AppColors.bgSurface,
+              color: colors.bgSurface,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.borderSubtle),
+              border: Border.all(color: colors.borderSubtle),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -182,12 +183,14 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.bgSurface,
+        color: colors.bgSurface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.borderSubtle),
+        border: Border.all(color: colors.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -214,7 +217,7 @@ class _InfoCard extends StatelessWidget {
           _InfoRow(
             label: l10n.leadDetailEstimatedValue,
             value: lead.estimatedValue != null ? '€${lead.estimatedValue!.toInt()}' : '—',
-            valueColor: AppColors.accentSuccess,
+            valueColor: colors.accentSuccess,
           ),
           _InfoRow(
             label: l10n.leadDetailCallCount,
@@ -224,13 +227,13 @@ class _InfoCard extends StatelessWidget {
             _InfoRow(
               label: l10n.leadDetailSatisfaction,
               value: '${'★' * lead.satisfactionScore!}${'☆' * (5 - lead.satisfactionScore!)}',
-              valueColor: AppColors.accentPrimary,
+              valueColor: colors.accentPrimary,
             ),
           if (lead.calledDuringAfterHours)
             _InfoRow(
               label: l10n.leadDetailAfterHours,
               value: 'Yes',
-              valueColor: AppColors.accentDanger,
+              valueColor: colors.accentDanger,
             ),
         ],
       ),
@@ -291,12 +294,14 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.bgSurface,
+        color: colors.bgSurface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.borderSubtle),
+        border: Border.all(color: colors.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

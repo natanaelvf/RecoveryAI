@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:missed_lead_recovery/l10n/generated/app_localizations.dart';
 import '../theme/app_colors.dart';
 import '../models/lead.dart';
 import '../utils/date_utils.dart' as app_date;
@@ -18,6 +18,7 @@ class LeadCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final colors = AppColors.of(context);
     final isEmergency = lead.urgency == Urgency.emergency;
 
     return GestureDetector(
@@ -26,13 +27,13 @@ class LeadCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         child: Container(
           decoration: BoxDecoration(
-            color: AppColors.bgSurface,
+            color: colors.bgSurface,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.borderSubtle),
+            border: Border.all(color: colors.borderSubtle),
             boxShadow: isEmergency
                 ? [
                     BoxShadow(
-                      color: AppColors.accentDanger.withValues(alpha: 0.15),
+                      color: colors.accentDanger.withValues(alpha: 0.15),
                       blurRadius: 12,
                       spreadRadius: 1,
                     ),
@@ -44,7 +45,7 @@ class LeadCard extends StatelessWidget {
               // Colored left accent strip
               Container(
                 width: 3,
-                color: _leftBorderColor,
+                color: _leftBorderColor(colors),
               ),
               // Card content
               Expanded(
@@ -65,14 +66,14 @@ class LeadCard extends StatelessWidget {
                                 lead.callerPhone,
                                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                       fontFamily: 'monospace',
-                                      color: AppColors.textTertiary,
+                                      color: colors.textTertiary,
                                       fontSize: 12,
                                     ),
                               ),
                               Text(
                                 app_date.timeAgo(context, lead.createdAt),
                                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: AppColors.textTertiary,
+                                      color: colors.textTertiary,
                                       fontSize: 11,
                                     ),
                               ),
@@ -99,8 +100,8 @@ class LeadCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 13,
                               color: lead.issueDescription != null
-                                  ? AppColors.textSecondary
-                                  : AppColors.textTertiary,
+                                  ? colors.textSecondary
+                                  : colors.textTertiary,
                               fontStyle: lead.issueDescription == null
                                   ? FontStyle.italic
                                   : FontStyle.normal,
@@ -124,14 +125,14 @@ class LeadCard extends StatelessWidget {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: AppColors.accentPrimaryMuted,
+                                    color: colors.accentPrimaryMuted,
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Text(
                                     '📞 ${l10n.leadsCalledTimes(lead.callCount)}',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 11,
-                                      color: AppColors.accentPrimary,
+                                      color: colors.accentPrimary,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -156,26 +157,26 @@ class LeadCard extends StatelessWidget {
     );
   }
 
-  Color get _leftBorderColor {
+  Color _leftBorderColor(AppColors colors) {
     switch (lead.status) {
       case LeadStatus.missed:
       case LeadStatus.consentSent:
       case LeadStatus.dnrAlert:
-        return AppColors.accentDanger;
+        return colors.accentDanger;
       case LeadStatus.optedIn:
       case LeadStatus.qualifying:
       case LeadStatus.qualifyingIssue:
       case LeadStatus.qualifyingUrgency:
       case LeadStatus.qualifyingName:
       case LeadStatus.bookingSent:
-        return AppColors.accentPrimary;
+        return colors.accentPrimary;
       case LeadStatus.booked:
-        return AppColors.accentSuccess;
+        return colors.accentSuccess;
       case LeadStatus.completed:
       case LeadStatus.followedUp:
-        return AppColors.accentInfo;
+        return colors.accentInfo;
       case LeadStatus.noConsent:
-        return AppColors.textTertiary;
+        return colors.textTertiary;
     }
   }
 }

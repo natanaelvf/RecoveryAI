@@ -20,6 +20,48 @@ class LeadsNotifier extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  /// Add a lead manually — inserts at the top of the list.
+  void addLead({
+    required String phone,
+    String? name,
+    String? description,
+    String urgency = 'medium',
+    double? estimatedValue,
+  }) {
+    final id = 'lead-manual-${DateTime.now().millisecondsSinceEpoch}';
+    final urgencyValue = _parseUrgency(urgency);
+
+    _leads.insert(
+      0,
+      Lead(
+        id: id,
+        contractorId: mockContractor.id,
+        callerPhone: phone,
+        callerName: name,
+        issueDescription: description,
+        urgency: urgencyValue,
+        status: LeadStatus.missed,
+        consentGiven: false,
+        callCount: 1,
+        estimatedValue: estimatedValue,
+        calledDuringAfterHours: false,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+    );
+    notifyListeners();
+  }
+
+  Urgency _parseUrgency(String value) {
+    switch (value) {
+      case 'emergency': return Urgency.emergency;
+      case 'high': return Urgency.high;
+      case 'medium': return Urgency.medium;
+      case 'low': return Urgency.low;
+      default: return Urgency.unknown;
+    }
+  }
 }
 
 final leadsProvider = ChangeNotifierProvider<LeadsNotifier>((ref) {

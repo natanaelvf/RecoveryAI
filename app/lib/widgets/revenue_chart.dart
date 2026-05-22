@@ -12,6 +12,7 @@ class RevenueChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final maxRevenue = data.fold<double>(
       100,
       (max, d) => d.revenue > max ? d.revenue : max,
@@ -41,9 +42,9 @@ class RevenueChart extends StatelessWidget {
                       padding: const EdgeInsets.only(top: 6),
                       child: Text(
                         data[idx].label,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 10,
-                          color: AppColors.textTertiary,
+                          color: colors.textTertiary,
                         ),
                       ),
                     );
@@ -56,14 +57,14 @@ class RevenueChart extends StatelessWidget {
           barTouchData: BarTouchData(
             enabled: true,
             touchTooltipData: BarTouchTooltipData(
-              getTooltipColor: (_) => AppColors.bgElevated,
+              getTooltipColor: (_) => colors.bgElevated,
               tooltipRoundedRadius: 6,
               getTooltipItem: (group, groupIndex, rod, rodIndex) {
                 final day = data[group.x.toInt()];
                 return BarTooltipItem(
                   '${day.label}\n€${day.revenue.toInt()}',
-                  const TextStyle(
-                    color: AppColors.accentPrimary,
+                  TextStyle(
+                    color: colors.accentPrimary,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -85,20 +86,20 @@ class RevenueChart extends StatelessWidget {
                     topRight: Radius.circular(3),
                   ),
                   gradient: hasRecovery
-                      ? const LinearGradient(
+                      ? LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            AppColors.accentPrimary,
-                            Color(0x66F59E0B),
+                            colors.accentPrimary,
+                            colors.accentPrimary.withValues(alpha: 0.4),
                           ],
                         )
                       : LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            AppColors.bgElevated.withValues(alpha: 0.8),
-                            AppColors.bgElevated.withValues(alpha: 0.3),
+                            colors.bgElevated.withValues(alpha: 0.8),
+                            colors.bgElevated.withValues(alpha: 0.3),
                           ],
                         ),
                 ),

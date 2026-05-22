@@ -16,6 +16,8 @@ class DayToggleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+
     return Row(
       children: List.generate(7, (index) {
         final dayNum = index + 1;
@@ -39,13 +41,13 @@ class DayToggleRow extends StatelessWidget {
                 height: 40,
                 decoration: BoxDecoration(
                   color: isActive
-                      ? AppColors.accentPrimaryMuted
-                      : AppColors.bgElevated,
+                      ? colors.accentPrimaryMuted
+                      : colors.bgElevated,
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
                     color: isActive
-                        ? AppColors.accentPrimary.withValues(alpha: 0.4)
-                        : AppColors.borderSubtle,
+                        ? colors.accentPrimary.withValues(alpha: 0.4)
+                        : colors.borderSubtle,
                   ),
                 ),
                 child: Center(
@@ -55,8 +57,8 @@ class DayToggleRow extends StatelessWidget {
                       fontSize: 12,
                       fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
                       color: isActive
-                          ? AppColors.accentPrimary
-                          : AppColors.textTertiary,
+                          ? colors.accentPrimary
+                          : colors.textTertiary,
                     ),
                   ),
                 ),

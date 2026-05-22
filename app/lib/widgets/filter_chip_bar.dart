@@ -18,6 +18,8 @@ class FilterChipBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+
     return SizedBox(
       height: 36,
       child: ListView.separated(
@@ -37,13 +39,13 @@ class FilterChipBar extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
                 color: isActive
-                    ? AppColors.accentPrimaryMuted
-                    : AppColors.bgElevated,
+                    ? colors.accentPrimaryMuted
+                    : colors.bgElevated,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: isActive
-                      ? AppColors.accentPrimary.withValues(alpha: 0.4)
-                      : AppColors.borderSubtle,
+                      ? colors.accentPrimary.withValues(alpha: 0.4)
+                      : colors.borderSubtle,
                 ),
               ),
               child: Row(
@@ -55,8 +57,8 @@ class FilterChipBar extends StatelessWidget {
                       fontSize: 13,
                       fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
                       color: isActive
-                          ? AppColors.accentPrimary
-                          : AppColors.textSecondary,
+                          ? colors.accentPrimary
+                          : colors.textSecondary,
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -65,8 +67,8 @@ class FilterChipBar extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       color: isActive
-                          ? AppColors.accentPrimary.withValues(alpha: 0.7)
-                          : AppColors.textTertiary,
+                          ? colors.accentPrimary.withValues(alpha: 0.7)
+                          : colors.textTertiary,
                     ),
                   ),
                 ],

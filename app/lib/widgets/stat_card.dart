@@ -22,7 +22,7 @@ class StatCard extends StatefulWidget {
     this.trend = '',
     this.trendUp = true,
     this.emoji = '📊',
-    this.accentColor = AppColors.accentPrimary,
+    required this.accentColor,
   });
 
   @override
@@ -56,12 +56,14 @@ class _StatCardState extends State<StatCard>
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.bgSurface,
+        color: colors.bgSurface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.borderSubtle),
+        border: Border.all(color: colors.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -102,7 +104,6 @@ class _StatCardState extends State<StatCard>
                 '${widget.prefix}${_formatNumber(current)}${widget.suffix}',
                 style: Theme.of(context).textTheme.displaySmall?.copyWith(
                   fontSize: 28,
-                  color: AppColors.textPrimary,
                 ),
               );
             },
@@ -116,8 +117,8 @@ class _StatCardState extends State<StatCard>
               style: TextStyle(
                 fontSize: 12,
                 color: widget.trendUp
-                    ? AppColors.accentSuccess
-                    : AppColors.accentDanger,
+                    ? colors.accentSuccess
+                    : colors.accentDanger,
                 fontWeight: FontWeight.w500,
               ),
             ),

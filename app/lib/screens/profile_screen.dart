@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:missed_lead_recovery/l10n/generated/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/contractor_provider.dart';
+import '../providers/theme_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/usage_bar.dart';
 
@@ -13,10 +14,12 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
+    final colors = AppColors.of(context);
     final c = ref.watch(contractorProvider).contractor;
+    final themePref = ref.watch(themePreferenceProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.bgBase,
+      backgroundColor: colors.bgBase,
       appBar: AppBar(
         title: Text(l10n.profileTitle),
       ),
@@ -27,9 +30,9 @@ class ProfileScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: AppColors.bgSurface,
+              color: colors.bgSurface,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.borderSubtle),
+              border: Border.all(color: colors.borderSubtle),
             ),
             child: Column(
               children: [
@@ -43,18 +46,18 @@ class ProfileScreen extends ConsumerWidget {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        AppColors.accentPrimary,
-                        AppColors.accentPrimary.withValues(alpha: 0.7),
+                        colors.accentPrimary,
+                        colors.accentPrimary.withValues(alpha: 0.7),
                       ],
                     ),
                   ),
                   child: Center(
                     child: Text(
                       c.initials,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textInverse,
+                        color: colors.textInverse,
                       ),
                     ),
                   ),
@@ -73,7 +76,7 @@ class ProfileScreen extends ConsumerWidget {
                 Text(
                   c.businessName,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.accentPrimary,
+                        color: colors.accentPrimary,
                       ),
                 ),
               ],
@@ -86,9 +89,9 @@ class ProfileScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.bgSurface,
+              color: colors.bgSurface,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.borderSubtle),
+              border: Border.all(color: colors.borderSubtle),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -101,15 +104,15 @@ class ProfileScreen extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppColors.accentSuccess.withValues(alpha: 0.12),
+                        color: colors.accentSuccess.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         '${c.tier.toUpperCase()} • ${c.tierPrice}/mo',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.accentSuccess,
+                          color: colors.accentSuccess,
                         ),
                       ),
                     ),
@@ -138,9 +141,9 @@ class ProfileScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.bgSurface,
+              color: colors.bgSurface,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.borderSubtle),
+              border: Border.all(color: colors.borderSubtle),
             ),
             child: Column(
               children: [
@@ -150,6 +153,16 @@ class ProfileScreen extends ConsumerWidget {
                   value: Localizations.localeOf(context).languageCode == 'fi'
                       ? 'Suomi'
                       : 'English',
+                ),
+                const Divider(),
+                _InfoTile(
+                  icon: Icons.brightness_6_rounded,
+                  label: 'Theme',
+                  value: themePref == ThemePreference.system
+                      ? 'System'
+                      : themePref == ThemePreference.dark
+                          ? 'Dark'
+                          : 'Light',
                 ),
                 const Divider(),
                 _InfoTile(
@@ -185,7 +198,7 @@ class ProfileScreen extends ConsumerWidget {
                           ref.read(authProvider).logout();
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.accentDanger,
+                          backgroundColor: colors.accentDanger,
                         ),
                         child: Text(l10n.profileLogout),
                       ),
@@ -193,13 +206,13 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                 );
               },
-              icon: const Icon(Icons.logout, color: AppColors.accentDanger),
+              icon: Icon(Icons.logout, color: colors.accentDanger),
               label: Text(
                 l10n.profileLogout,
-                style: const TextStyle(color: AppColors.accentDanger),
+                style: TextStyle(color: colors.accentDanger),
               ),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.accentDanger),
+                side: BorderSide(color: colors.accentDanger),
               ),
             ),
           ),
@@ -224,11 +237,13 @@ class _InfoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: AppColors.textTertiary),
+          Icon(icon, size: 20, color: colors.textTertiary),
           const SizedBox(width: 12),
           Expanded(
             child: Text(label, style: Theme.of(context).textTheme.bodyMedium),

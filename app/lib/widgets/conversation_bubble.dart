@@ -18,6 +18,8 @@ class ConversationBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+
     return Column(
       children: [
         // Date separator
@@ -26,9 +28,9 @@ class ConversationBubble extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Text(
               dateLabel!,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
-                color: AppColors.textTertiary,
+                color: colors.textTertiary,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -47,8 +49,8 @@ class ConversationBubble extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: message.isOutbound
-                  ? AppColors.accentPrimary.withValues(alpha: 0.12)
-                  : AppColors.bgElevated,
+                  ? colors.accentPrimary.withValues(alpha: 0.12)
+                  : colors.bgElevated,
               borderRadius: BorderRadius.only(
                 topLeft: const Radius.circular(12),
                 topRight: const Radius.circular(12),
@@ -57,8 +59,8 @@ class ConversationBubble extends StatelessWidget {
               ),
               border: Border.all(
                 color: message.isOutbound
-                    ? AppColors.accentPrimary.withValues(alpha: 0.2)
-                    : AppColors.borderSubtle,
+                    ? colors.accentPrimary.withValues(alpha: 0.2)
+                    : colors.borderSubtle,
               ),
             ),
             child: Column(
@@ -69,8 +71,8 @@ class ConversationBubble extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13.5,
                     color: message.isOutbound
-                        ? AppColors.textPrimary
-                        : AppColors.textSecondary,
+                        ? colors.textPrimary
+                        : colors.textSecondary,
                     height: 1.4,
                   ),
                 ),
@@ -80,18 +82,18 @@ class ConversationBubble extends StatelessWidget {
                   children: [
                     Text(
                       app_date.formatTime(message.sentAt),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 10,
-                        color: AppColors.textTertiary,
+                        color: colors.textTertiary,
                       ),
                     ),
                     if (message.isOutbound) ...[
                       const SizedBox(width: 4),
-                      const Text(
+                      Text(
                         '✓✓',
                         style: TextStyle(
                           fontSize: 10,
-                          color: AppColors.accentSuccess,
+                          color: colors.accentSuccess,
                         ),
                       ),
                     ],
