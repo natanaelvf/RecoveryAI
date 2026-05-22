@@ -33,8 +33,10 @@ function verifyCalendlySignature(
 router.post('/', async (req: Request, res: Response) => {
   try {
     // Verify signature
+    // Fix #8: Use the raw body buffer for signature verification instead of
+    // re-serializing JSON (which may alter key order / whitespace).
     const signature = req.headers['calendly-webhook-signature'] as string || '';
-    const rawBody = JSON.stringify(req.body);
+    const rawBody = (req as Request & { rawBody?: string }).rawBody || JSON.stringify(req.body);
 
     if (!verifyCalendlySignature(rawBody, signature, env.calendlyWebhookSecret)) {
       res.status(401).json({ error: 'Invalid webhook signature' });
@@ -58,20 +60,19 @@ router.post('/', async (req: Request, res: Response) => {
     const eventStartTime = payload?.event?.start_time as string | undefined;
     const calendlyEventId = payload?.event?.uri as string | undefined;
 
-    // Match to a lead by phone or email
-    let leadQuery = supabase.from('leads').select('*');
-
-    if (inviteePhone) {
-      leadQuery = leadQuery.eq('caller_phone', inviteePhone);
-    } else if (inviteeEmail) {
-      leadQuery = leadQuery.eq('email', inviteeEmail);
-    } else {
-      console.warn('Calendly webhook: no phone or email to match lead');
+    // Match to a lead by phone number
+    // Fix #21: Removed email fallback — the SMS flow never collects email,
+    // so matching by email would never work. Only match by phone.
+    if (!inviteePhone) {
+      console.warn('Calendly webhook: no phone number to match lead');
       res.status(200).json({ ok: true });
       return;
     }
 
-    const { data: lead, error } = await leadQuery
+    const { data: lead, error } = await supabase
+      .from('leads')
+      .select('*')
+      .eq('caller_phone', inviteePhone)
       .eq('status', LeadStatus.BookingSent)
       .order('created_at', { ascending: false })
       .limit(1)

@@ -52,6 +52,9 @@ class StatusBadge extends StatelessWidget {
         return AppColors.statusMissed;
       case LeadStatus.optedIn:
       case LeadStatus.qualifying:
+      case LeadStatus.qualifyingIssue:
+      case LeadStatus.qualifyingUrgency:
+      case LeadStatus.qualifyingName:
       case LeadStatus.bookingSent:
         return AppColors.statusActive;
       case LeadStatus.booked:
@@ -70,6 +73,9 @@ class StatusBadge extends StatelessWidget {
       case LeadStatus.consentSent: return l10n.statusConsentSent;
       case LeadStatus.optedIn: return l10n.statusOptedIn;
       case LeadStatus.qualifying: return l10n.statusQualifying;
+      case LeadStatus.qualifyingIssue: return l10n.statusQualifying;
+      case LeadStatus.qualifyingUrgency: return l10n.statusQualifying;
+      case LeadStatus.qualifyingName: return l10n.statusQualifying;
       case LeadStatus.bookingSent: return l10n.statusBookingSent;
       case LeadStatus.booked: return l10n.statusBooked;
       case LeadStatus.completed: return l10n.statusCompleted;

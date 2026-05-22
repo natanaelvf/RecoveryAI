@@ -1,15 +1,21 @@
 import { supabase } from '../config/supabase';
 import { Lead } from '../types';
 
+export interface FindOrCreateResult {
+  lead: Lead;
+  isNew: boolean;
+}
+
 /**
  * Find an existing lead for this caller + contractor within the last 24 hours,
  * or create a new one. Increments call_count on duplicates.
+ * Returns { lead, isNew } so callers know whether to trigger the SMS flow.
  */
 export async function findOrCreateLead(
   contractorId: string,
   callerPhone: string,
   calledDuringAfterHours: boolean
-): Promise<Lead> {
+): Promise<FindOrCreateResult> {
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
   // Check for existing recent lead from same caller
@@ -27,7 +33,10 @@ export async function findOrCreateLead(
     // Duplicate call — increment call_count
     const { data: updated, error: updateError } = await supabase
       .from('leads')
-      .update({ call_count: (existing as Lead).call_count + 1 })
+      .update({
+        call_count: (existing as Lead).call_count + 1,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', existing.id)
       .select('*')
       .single();
@@ -36,8 +45,15 @@ export async function findOrCreateLead(
       throw new Error(`Failed to update lead call_count: ${updateError?.message}`);
     }
 
-    return updated as Lead;
+    return { lead: updated as Lead, isNew: false };
   }
+
+  // Look up contractor's default job value for estimated_value
+  const { data: contractor } = await supabase
+    .from('contractors')
+    .select('default_job_value')
+    .eq('id', contractorId)
+    .single();
 
   // No recent lead — create a new one
   const { data: newLead, error: insertError } = await supabase
@@ -51,6 +67,7 @@ export async function findOrCreateLead(
       consent_given: false,
       dnr_alert_sent: false,
       called_during_after_hours: calledDuringAfterHours,
+      estimated_value: contractor?.default_job_value ?? null,
     })
     .select('*')
     .single();
@@ -59,5 +76,5 @@ export async function findOrCreateLead(
     throw new Error(`Failed to create lead: ${insertError?.message}`);
   }
 
-  return newLead as Lead;
+  return { lead: newLead as Lead, isNew: true };
 }

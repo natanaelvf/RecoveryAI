@@ -45,6 +45,9 @@ class LeadDetailScreen extends ConsumerWidget {
     final canComplete = [
       LeadStatus.booked,
       LeadStatus.qualifying,
+      LeadStatus.qualifyingIssue,
+      LeadStatus.qualifyingUrgency,
+      LeadStatus.qualifyingName,
       LeadStatus.bookingSent,
       LeadStatus.dnrAlert,
     ].contains(lead.status);
@@ -53,26 +56,6 @@ class LeadDetailScreen extends ConsumerWidget {
       backgroundColor: AppColors.bgBase,
       appBar: AppBar(
         title: Text(lead.displayName),
-        actions: [
-          if (canComplete)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  ref.read(leadsProvider).markComplete(leadId);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(l10n.toastLeadCompleted)),
-                  );
-                },
-                icon: const Icon(Icons.check, size: 18),
-                label: Text(l10n.leadDetailMarkComplete),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  textStyle: const TextStyle(fontSize: 13),
-                ),
-              ),
-            ),
-        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),

@@ -72,6 +72,62 @@ class Contractor {
     }
   }
 
+  factory Contractor.fromJson(Map<String, dynamic> json) {
+    return Contractor(
+      id: json['id'] as String,
+      businessName: json['business_name'] as String,
+      contactName: json['contact_name'] as String,
+      contactEmail: json['contact_email'] as String,
+      contactPhone: json['contact_phone'] as String,
+      twilioPhoneNumber: json['twilio_phone_number'] as String,
+      numberSetupType: json['number_setup_type'] as String? ?? 'forwarding',
+      calendlyUrl: json['calendly_url'] as String?,
+      tradeType: json['trade_type'] as String?,
+      defaultJobValue: (json['default_job_value'] as num?)?.toDouble(),
+      urgencyThresholdUrgentMin: json['urgency_threshold_urgent_min'] as int? ?? 60,
+      urgencyThresholdNormalMin: json['urgency_threshold_normal_min'] as int? ?? 1440,
+      workingHoursStart: json['working_hours_start'] as String? ?? '08:00',
+      workingHoursEnd: json['working_hours_end'] as String? ?? '18:00',
+      workingDays: (json['working_days'] as List<dynamic>?)?.cast<int>() ?? [1, 2, 3, 4, 5],
+      afterHoursEmergencyPolicy: json['after_hours_emergency_policy'] as String?,
+      afterHoursRing: json['after_hours_ring'] as bool? ?? false,
+      timezone: json['timezone'] as String? ?? 'Europe/Helsinki',
+      tier: json['tier'] as String? ?? 'starter',
+      monthlySMSCap: json['monthly_sms_cap'] as int? ?? 50,
+      smsUsedThisMonth: json['sms_used_this_month'] as int? ?? 0,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      updatedAt: DateTime.parse(json['updated_at'] as String),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'business_name': businessName,
+      'contact_name': contactName,
+      'contact_email': contactEmail,
+      'contact_phone': contactPhone,
+      'twilio_phone_number': twilioPhoneNumber,
+      'number_setup_type': numberSetupType,
+      'calendly_url': calendlyUrl,
+      'trade_type': tradeType,
+      'default_job_value': defaultJobValue,
+      'urgency_threshold_urgent_min': urgencyThresholdUrgentMin,
+      'urgency_threshold_normal_min': urgencyThresholdNormalMin,
+      'working_hours_start': workingHoursStart,
+      'working_hours_end': workingHoursEnd,
+      'working_days': workingDays,
+      'after_hours_emergency_policy': afterHoursEmergencyPolicy,
+      'after_hours_ring': afterHoursRing,
+      'timezone': timezone,
+      'tier': tier,
+      'monthly_sms_cap': monthlySMSCap,
+      'sms_used_this_month': smsUsedThisMonth,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+    };
+  }
+
   Contractor copyWith({
     String? id,
     String? businessName,

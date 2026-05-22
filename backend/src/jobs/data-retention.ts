@@ -5,6 +5,7 @@ import { supabase } from '../config/supabase';
  *
  * Anonymizes leads older than 12 months by clearing PII fields.
  * Messages are deleted entirely.
+ * Logs each anonymization to the audit_log table.
  *
  * Called by daily cron (once per day).
  */
@@ -17,7 +18,7 @@ export async function runDataRetention(): Promise<void> {
     // Find leads older than 12 months that haven't been anonymized yet
     const { data: oldLeads, error } = await supabase
       .from('leads')
-      .select('id')
+      .select('id, contractor_id')
       .lt('created_at', cutoff)
       .not('caller_phone', 'eq', 'ANONYMIZED');
 
@@ -71,8 +72,26 @@ export async function runDataRetention(): Promise<void> {
       return;
     }
 
+    // Fix #16: Log each anonymization to audit_log for GDPR compliance
+    const auditEntries = oldLeads.map((l) => ({
+      action: 'data_retention_anonymize',
+      entity_type: 'lead',
+      entity_id: l.id,
+      performed_by: 'system:data_retention_cron',
+    }));
+
+    const { error: auditError } = await supabase
+      .from('audit_log')
+      .insert(auditEntries);
+
+    if (auditError) {
+      // Non-fatal: log but don't fail the job
+      console.error('[cron] Failed to write audit log:', auditError.message);
+    }
+
     console.log(`[cron] Anonymized ${leadIds.length} leads older than 12 months`);
   } catch (err) {
     console.error('[cron] Data retention job failed:', err);
   }
 }
+

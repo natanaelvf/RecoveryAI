@@ -5,6 +5,9 @@ export enum LeadStatus {
   ConsentSent = 'consent_sent',
   OptedIn = 'opted_in',
   Qualifying = 'qualifying',
+  QualifyingIssue = 'qualifying_issue',
+  QualifyingUrgency = 'qualifying_urgency',
+  QualifyingName = 'qualifying_name',
   BookingSent = 'booking_sent',
   Booked = 'booked',
   Completed = 'completed',
@@ -24,7 +27,7 @@ export enum Urgency {
 export type NumberSetupType = 'forwarding' | 'new_number';
 export type Tier = 'starter' | 'growth' | 'pro';
 export type MessageDirection = 'inbound' | 'outbound';
-export type ScheduledTaskType = 'dnr_check' | 'satisfaction_followup' | 'reminder';
+export type ScheduledTaskType = 'dnr_check' | 'satisfaction_followup' | 'reminder' | 'consent_timeout';
 
 // --- Database row interfaces ---
 

@@ -48,11 +48,13 @@ router.post('/', async (req: Request, res: Response) => {
       twiml.hangup();
 
       // Immediately handle as missed call (after hours)
-      const lead = await findOrCreateLead(contractor.id, body.From, true);
-      await initiateConsentSms(lead, contractor);
+      const { lead, isNew } = await findOrCreateLead(contractor.id, body.From, true);
+      if (isNew) {
+        await initiateConsentSms(lead, contractor);
+      }
       await sendPushNotification(
         contractor.id,
-        'Missed Call (After Hours)',
+        isNew ? 'Missed Call (After Hours)' : `Repeat Caller (${lead.call_count}x)`,
         `Call from ${body.From} while closed`,
         { leadId: lead.id }
       );
@@ -80,11 +82,13 @@ router.post('/status', async (req: Request, res: Response) => {
       const contractor = await lookupContractorByTwilioNumber(To);
       if (contractor) {
         const afterHours = !isWithinWorkingHours(contractor);
-        const lead = await findOrCreateLead(contractor.id, From, afterHours);
-        await initiateConsentSms(lead, contractor);
+        const { lead, isNew } = await findOrCreateLead(contractor.id, From, afterHours);
+        if (isNew) {
+          await initiateConsentSms(lead, contractor);
+        }
         await sendPushNotification(
           contractor.id,
-          'Missed Call',
+          isNew ? 'Missed Call' : `Repeat Caller (${lead.call_count}x)`,
           `Missed call from ${From}`,
           { leadId: lead.id }
         );

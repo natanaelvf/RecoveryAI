@@ -61,6 +61,7 @@ CREATE TABLE leads (
   status                    text DEFAULT 'missed'           -- lifecycle status
     CHECK (status IN (
       'missed', 'consent_sent', 'opted_in', 'qualifying',
+      'qualifying_issue', 'qualifying_urgency', 'qualifying_name',
       'booking_sent', 'booked', 'completed', 'followed_up',
       'dnr_alert', 'no_consent'
     )),
@@ -104,14 +105,30 @@ COMMENT ON TABLE messages IS 'SMS conversation log — every message sent to or 
 CREATE TABLE scheduled_tasks (
   id          uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   lead_id     uuid NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
-  task_type   text NOT NULL                                -- dnr_check | satisfaction_followup | reminder
-    CHECK (task_type IN ('dnr_check', 'satisfaction_followup', 'reminder')),
+  task_type   text NOT NULL                                -- dnr_check | satisfaction_followup | reminder | consent_timeout
+    CHECK (task_type IN ('dnr_check', 'satisfaction_followup', 'reminder', 'consent_timeout')),
   execute_at  timestamptz NOT NULL,
   executed    boolean DEFAULT false,
   created_at  timestamptz DEFAULT now()
 );
 
 COMMENT ON TABLE scheduled_tasks IS 'Deferred tasks — the cron runner picks these up when execute_at <= now().';
+
+-- ============================================================================
+-- TABLE: audit_log
+-- GDPR compliance: records data deletion/anonymization events.
+-- No PII is stored — only the action, entity reference, and timestamp.
+-- ============================================================================
+CREATE TABLE audit_log (
+  id            uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  action        text NOT NULL,                              -- e.g. 'data_retention_anonymize', 'gdpr_deletion'
+  entity_type   text NOT NULL,                              -- e.g. 'lead'
+  entity_id     uuid,                                       -- the ID of the affected entity
+  performed_by  text DEFAULT 'system',                      -- 'system:cron_name' or contractor ID
+  performed_at  timestamptz DEFAULT now()
+);
+
+COMMENT ON TABLE audit_log IS 'GDPR audit log — records data deletion and anonymization events without PII.';
 
 
 -- ============================================================================

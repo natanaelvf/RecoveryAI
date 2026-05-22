@@ -1,6 +1,7 @@
 import { supabase } from '../config/supabase';
 import { Lead, LeadStatus, Contractor } from '../types';
 import { sendSms } from './twilio';
+import { sendPushNotification } from './notifications';
 
 // --- SMS Templates (English drafts — TODO: translate to Finnish) ---
 
@@ -13,6 +14,9 @@ const TEMPLATES = {
 
   askUrgency: () =>
     `How urgent is this?\n1 - Not urgent, can wait a few days\n2 - Soon, within 24-48h\n3 - Urgent, need help today\n4 - Emergency, need help now`,
+
+  askName: () =>
+    `Thanks! What's your name so we can address you properly?`,
 
   bookingLink: (businessName: string, calendlyUrl: string) =>
     `Thanks! Here's a link to book a time with ${businessName}: ${calendlyUrl}\nWe'll confirm once it's booked!`,
@@ -63,14 +67,29 @@ async function updateLeadStatus(
 
 /**
  * Send an outbound SMS and record it.
+ * Wrapped in try/catch so a Twilio failure doesn't crash the state machine.
+ * Returns true on success, false on failure.
  */
 async function sendAndRecord(
   lead: Lead,
   fromNumber: string,
   body: string
-): Promise<void> {
-  const sid = await sendSms(lead.caller_phone, fromNumber, body);
-  await recordMessage(lead.id, 'outbound', body, sid);
+): Promise<boolean> {
+  try {
+    const sid = await sendSms(lead.caller_phone, fromNumber, body);
+    await recordMessage(lead.id, 'outbound', body, sid);
+    return true;
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error(`[sms] Failed to send SMS to ${lead.caller_phone}: ${errorMsg}`);
+
+    // If SMS cap reached, don't record anything — just log
+    if (errorMsg === 'SMS_CAP_REACHED') {
+      console.warn(`[sms] SMS cap reached, skipping message for lead ${lead.id}`);
+    }
+
+    return false;
+  }
 }
 
 /**
@@ -88,15 +107,37 @@ function parseUrgency(text: string): string | null {
 }
 
 /**
+ * Re-fetch the lead from the database to avoid stale data / race conditions.
+ */
+async function refreshLead(leadId: string): Promise<Lead | null> {
+  const { data, error } = await supabase
+    .from('leads')
+    .select('*')
+    .eq('id', leadId)
+    .single();
+
+  if (error || !data) return null;
+  return data as Lead;
+}
+
+/**
  * Main SMS state machine — processes inbound SMS based on lead's current status.
+ * Re-fetches the lead at the start to avoid race conditions with stale data.
  */
 export async function handleInboundSms(
-  lead: Lead,
+  leadInput: Lead,
   messageBody: string,
   contractor: Contractor
 ): Promise<void> {
   const body = messageBody.trim();
   const fromNumber = contractor.twilio_phone_number;
+
+  // Re-fetch lead to get latest status (fix #1: race condition prevention)
+  const lead = await refreshLead(leadInput.id);
+  if (!lead) {
+    console.error(`[sms] Lead ${leadInput.id} not found during re-fetch`);
+    return;
+  }
 
   // Record inbound message
   await recordMessage(lead.id, 'inbound', body);
@@ -106,13 +147,12 @@ export async function handleInboundSms(
     case LeadStatus.ConsentSent: {
       const upper = body.toUpperCase();
       if (upper === 'YES' || upper === 'KYLLÄ' || upper === 'KYLLA') {
-        await updateLeadStatus(lead.id, LeadStatus.OptedIn, {
+        await updateLeadStatus(lead.id, LeadStatus.QualifyingIssue, {
           consent_given: true,
           consent_given_at: new Date().toISOString(),
         });
         const msg = TEMPLATES.askIssue(contractor.business_name);
         await sendAndRecord(lead, fromNumber, msg);
-        await updateLeadStatus(lead.id, LeadStatus.Qualifying);
       } else if (upper === 'STOP' || upper === 'EI') {
         await updateLeadStatus(lead.id, LeadStatus.NoConsent);
         const msg = TEMPLATES.noConsent();
@@ -125,56 +165,88 @@ export async function handleInboundSms(
       break;
     }
 
-    // --- Qualifying: collecting issue description ---
+    // --- Qualifying: collecting issue description (fix #2: dedicated state) ---
+    case LeadStatus.QualifyingIssue:
     case LeadStatus.Qualifying: {
-      // Check if we already have the issue_description set — if not, this is the issue reply
-      if (!lead.issue_description) {
+      // Store the issue description
+      await supabase
+        .from('leads')
+        .update({ issue_description: body, updated_at: new Date().toISOString() })
+        .eq('id', lead.id);
+
+      // Advance to urgency step
+      await updateLeadStatus(lead.id, LeadStatus.QualifyingUrgency);
+
+      // Ask urgency
+      const msg = TEMPLATES.askUrgency();
+      await sendAndRecord(lead, fromNumber, msg);
+      break;
+    }
+
+    // --- Qualifying: collecting urgency (fix #2: dedicated state) ---
+    case LeadStatus.QualifyingUrgency: {
+      const urgency = parseUrgency(body);
+      if (urgency) {
         await supabase
           .from('leads')
-          .update({ issue_description: body, updated_at: new Date().toISOString() })
+          .update({ urgency, updated_at: new Date().toISOString() })
           .eq('id', lead.id);
 
-        // Ask urgency
-        const msg = TEMPLATES.askUrgency();
+        // Fix #19: If emergency + after-hours, send high-priority push immediately
+        if (urgency === 'emergency' && lead.called_during_after_hours) {
+          await sendPushNotification(
+            contractor.id,
+            '🚨 EMERGENCY Lead',
+            `${lead.caller_phone}: ${lead.issue_description || 'Unknown issue'}`,
+            { leadId: lead.id, priority: 'high' }
+          );
+        }
+
+        // Advance to name collection (fix #22)
+        await updateLeadStatus(lead.id, LeadStatus.QualifyingName);
+
+        const msg = TEMPLATES.askName();
         await sendAndRecord(lead, fromNumber, msg);
       } else {
-        // This should be the urgency reply
-        const urgency = parseUrgency(body);
-        if (urgency) {
-          await supabase
-            .from('leads')
-            .update({ urgency, updated_at: new Date().toISOString() })
-            .eq('id', lead.id);
-
-          // Send booking link
-          const msg = TEMPLATES.bookingLink(contractor.business_name, contractor.calendly_url);
-          await sendAndRecord(lead, fromNumber, msg);
-          await updateLeadStatus(lead.id, LeadStatus.BookingSent);
-        } else {
-          // Unrecognized — re-ask urgency
-          const msg = TEMPLATES.askUrgency();
-          await sendAndRecord(lead, fromNumber, msg);
-        }
+        // Unrecognized — re-ask urgency
+        const msg = TEMPLATES.askUrgency();
+        await sendAndRecord(lead, fromNumber, msg);
       }
+      break;
+    }
+
+    // --- Qualifying: collecting name (fix #22: name collection step) ---
+    case LeadStatus.QualifyingName: {
+      // Store the caller name
+      await supabase
+        .from('leads')
+        .update({ caller_name: body, updated_at: new Date().toISOString() })
+        .eq('id', lead.id);
+
+      // Send booking link
+      const msg = TEMPLATES.bookingLink(contractor.business_name, contractor.calendly_url);
+      await sendAndRecord(lead, fromNumber, msg);
+      await updateLeadStatus(lead.id, LeadStatus.BookingSent);
       break;
     }
 
     // --- Booking sent: waiting for Calendly webhook, but user might reply ---
     case LeadStatus.BookingSent: {
-      // TODO: Handle free-text replies while waiting for booking
-      // Could re-send the booking link or acknowledge
+      // Re-send the booking link if they reply while waiting
       const msg = TEMPLATES.bookingLink(contractor.business_name, contractor.calendly_url);
       await sendAndRecord(lead, fromNumber, msg);
       break;
     }
 
-    // --- Satisfaction follow-up ---
+    // --- Satisfaction follow-up (fix #13: search entire reply for score) ---
     case LeadStatus.FollowedUp: {
-      // Parse satisfaction score
-      const score = parseInt(body, 10);
-      if (score >= 1 && score <= 5) {
-        // Extract remaining text as feedback
-        const feedbackText = body.replace(/^\d\s*/, '').trim() || null;
+      // Search the entire reply for a digit 1-5
+      const match = body.match(/[1-5]/);
+      if (match) {
+        const score = parseInt(match[0], 10);
+        // Extract remaining text as feedback (remove the score digit)
+        const feedbackText = body.replace(/[1-5]/, '').trim() || null;
+
         await supabase
           .from('leads')
           .update({
@@ -184,6 +256,16 @@ export async function handleInboundSms(
           })
           .eq('id', lead.id);
         await updateLeadStatus(lead.id, LeadStatus.Completed);
+
+        // If score <= 2, alert the contractor
+        if (score <= 2) {
+          await sendPushNotification(
+            contractor.id,
+            '⚠️ Low Satisfaction Score',
+            `${lead.caller_name || lead.caller_phone} rated ${score}/5: ${feedbackText || 'No comment'}`,
+            { leadId: lead.id }
+          );
+        }
       } else {
         // Re-ask
         const msg = TEMPLATES.satisfactionFollowup(contractor.business_name);
@@ -193,7 +275,6 @@ export async function handleInboundSms(
     }
 
     default: {
-      // TODO: Handle unexpected inbound messages in other statuses
       console.warn(`Received SMS for lead ${lead.id} in unexpected status: ${lead.status}`);
       break;
     }
@@ -203,12 +284,25 @@ export async function handleInboundSms(
 /**
  * Kick off the consent flow for a newly missed lead.
  * Called after a missed call is detected.
+ * Also schedules a consent timeout (fix #20).
  */
 export async function initiateConsentSms(
   lead: Lead,
   contractor: Contractor
 ): Promise<void> {
-  const msg = TEMPLATES.consentRequest(contractor.business_name);
-  await sendAndRecord(lead, contractor.twilio_phone_number, msg);
-  await updateLeadStatus(lead.id, LeadStatus.ConsentSent);
+  const sent = await sendAndRecord(lead, contractor.twilio_phone_number,
+    TEMPLATES.consentRequest(contractor.business_name));
+
+  if (sent) {
+    await updateLeadStatus(lead.id, LeadStatus.ConsentSent);
+
+    // Schedule consent timeout: if no reply in 30 minutes, mark as no_consent
+    const timeoutAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+    await supabase.from('scheduled_tasks').insert({
+      lead_id: lead.id,
+      task_type: 'consent_timeout',
+      execute_at: timeoutAt,
+      executed: false,
+    });
+  }
 }

@@ -12,16 +12,31 @@ import leadsApi from './routes/api/leads';
 import statsApi from './routes/api/stats';
 import contractorApi from './routes/api/contractor';
 
+// --- Middleware imports ---
+import { twilioSignatureMiddleware } from './middleware/twilio-signature';
+
 // --- Cron job imports ---
 import { runDnrCheck } from './jobs/dnr-check';
 import { runSatisfactionFollowup } from './jobs/satisfaction-followup';
 import { runDataRetention } from './jobs/data-retention';
+import { runConsentTimeout } from './jobs/consent-timeout';
+import { runSmsReset } from './jobs/sms-reset';
 
 const app = express();
 
 // --- Middleware ---
 app.use(helmet());
-app.use(cors());
+
+// Fix #9: Restrict CORS to specific origins (mobile app doesn't need CORS,
+// but keep it ready for a future web dashboard)
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN || false, // Disabled by default; set CORS_ORIGIN env var for web dashboard
+    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // Twilio sends form-encoded
 
@@ -30,9 +45,10 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// --- Webhook routes (no auth — validated by signature/Twilio) ---
-app.use('/webhooks/twilio-voice', twilioVoiceWebhook);
-app.use('/webhooks/twilio-sms', twilioSmsWebhook);
+// --- Webhook routes (validated by signature) ---
+// Fix #7: Apply Twilio signature validation to Twilio webhook routes
+app.use('/webhooks/twilio-voice', twilioSignatureMiddleware, twilioVoiceWebhook);
+app.use('/webhooks/twilio-sms', twilioSignatureMiddleware, twilioSmsWebhook);
 app.use('/webhooks/calendly', calendlyWebhook);
 
 // --- API routes (auth required) ---
@@ -53,10 +69,24 @@ cron.schedule('*/30 * * * *', () => {
   );
 });
 
+// Consent timeout: every 5 minutes (fix #20)
+cron.schedule('*/5 * * * *', () => {
+  runConsentTimeout().catch((err) =>
+    console.error('[cron] Consent timeout error:', err)
+  );
+});
+
 // Data retention: daily at 3:00 AM
 cron.schedule('0 3 * * *', () => {
   runDataRetention().catch((err) =>
     console.error('[cron] Data retention error:', err)
+  );
+});
+
+// Monthly SMS reset: 1st of each month at midnight
+cron.schedule('0 0 1 * *', () => {
+  runSmsReset().catch((err) =>
+    console.error('[cron] SMS reset error:', err)
   );
 });
 

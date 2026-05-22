@@ -3,6 +3,9 @@ import { Contractor } from '../types';
 /**
  * Returns true if the current time falls within the contractor's
  * configured working hours and working days.
+ *
+ * Weekday convention: Database uses 1=Mon, 2=Tue, ..., 7=Sun
+ * (matching the PostgreSQL schema default of '{1,2,3,4,5}').
  */
 export function isWithinWorkingHours(contractor: Contractor): boolean {
   const now = new Date();
@@ -21,9 +24,10 @@ export function isWithinWorkingHours(contractor: Contractor): boolean {
   const minute = parseInt(parts.find((p) => p.type === 'minute')?.value || '0', 10);
   const weekdayStr = parts.find((p) => p.type === 'weekday')?.value || '';
 
-  // Map weekday string to number (0=Sun..6=Sat)
+  // Fix #6: Map weekday string to database convention (1=Mon..7=Sun)
+  // The DB default is '{1,2,3,4,5}' meaning Mon-Fri.
   const weekdayMap: Record<string, number> = {
-    Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+    Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7,
   };
   const currentDay = weekdayMap[weekdayStr] ?? -1;
 
@@ -40,3 +44,4 @@ export function isWithinWorkingHours(contractor: Contractor): boolean {
 
   return currentMinutes >= startMinutes && currentMinutes < endMinutes;
 }
+

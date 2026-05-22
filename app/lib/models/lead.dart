@@ -6,6 +6,9 @@ enum LeadStatus {
   consentSent,
   optedIn,
   qualifying,
+  qualifyingIssue,
+  qualifyingUrgency,
+  qualifyingName,
   bookingSent,
   booked,
   completed,
@@ -19,6 +22,9 @@ enum LeadStatus {
       case consentSent: return 'consent_sent';
       case optedIn: return 'opted_in';
       case qualifying: return 'qualifying';
+      case qualifyingIssue: return 'qualifying_issue';
+      case qualifyingUrgency: return 'qualifying_urgency';
+      case qualifyingName: return 'qualifying_name';
       case bookingSent: return 'booking_sent';
       case booked: return 'booked';
       case completed: return 'completed';
@@ -34,6 +40,9 @@ enum LeadStatus {
       case 'consent_sent': return consentSent;
       case 'opted_in': return optedIn;
       case 'qualifying': return qualifying;
+      case 'qualifying_issue': return qualifyingIssue;
+      case 'qualifying_urgency': return qualifyingUrgency;
+      case 'qualifying_name': return qualifyingName;
       case 'booking_sent': return bookingSent;
       case 'booked': return booked;
       case 'completed': return completed;
@@ -52,6 +61,9 @@ enum LeadStatus {
         return 0;
       case optedIn:
       case qualifying:
+      case qualifyingIssue:
+      case qualifyingUrgency:
+      case qualifyingName:
       case bookingSent:
       case dnrAlert:
         return 1;
@@ -74,6 +86,9 @@ enum LeadStatus {
         return 'missed';
       case optedIn:
       case qualifying:
+      case qualifyingIssue:
+      case qualifyingUrgency:
+      case qualifyingName:
       case bookingSent:
       case dnrAlert:
         return 'contacted';
@@ -153,6 +168,64 @@ class Lead {
 
   /// Display name: caller name if available, else phone number.
   String get displayName => callerName ?? callerPhone;
+
+  /// Create a Lead from a JSON map (e.g., from the REST API).
+  factory Lead.fromJson(Map<String, dynamic> json) {
+    return Lead(
+      id: json['id'] as String,
+      contractorId: json['contractor_id'] as String,
+      callerPhone: json['caller_phone'] as String,
+      callerName: json['caller_name'] as String?,
+      issueDescription: json['issue_description'] as String?,
+      urgency: Urgency.fromString(json['urgency'] as String? ?? 'unknown'),
+      status: LeadStatus.fromString(json['status'] as String? ?? 'missed'),
+      consentGiven: json['consent_given'] as bool? ?? false,
+      consentGivenAt: json['consent_given_at'] != null
+          ? DateTime.parse(json['consent_given_at'] as String)
+          : null,
+      callCount: json['call_count'] as int? ?? 1,
+      estimatedValue: (json['estimated_value'] as num?)?.toDouble(),
+      bookingTime: json['booking_time'] != null
+          ? DateTime.parse(json['booking_time'] as String)
+          : null,
+      calendlyEventId: json['calendly_event_id'] as String?,
+      dnrAlertSent: json['dnr_alert_sent'] as bool? ?? false,
+      dnrAlertSentAt: json['dnr_alert_sent_at'] != null
+          ? DateTime.parse(json['dnr_alert_sent_at'] as String)
+          : null,
+      satisfactionScore: json['satisfaction_score'] as int?,
+      satisfactionFeedback: json['satisfaction_feedback'] as String?,
+      calledDuringAfterHours: json['called_during_after_hours'] as bool? ?? false,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      updatedAt: DateTime.parse(json['updated_at'] as String),
+    );
+  }
+
+  /// Serialize to JSON map for API requests.
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'contractor_id': contractorId,
+      'caller_phone': callerPhone,
+      'caller_name': callerName,
+      'issue_description': issueDescription,
+      'urgency': urgency.name,
+      'status': status.value,
+      'consent_given': consentGiven,
+      'consent_given_at': consentGivenAt?.toIso8601String(),
+      'call_count': callCount,
+      'estimated_value': estimatedValue,
+      'booking_time': bookingTime?.toIso8601String(),
+      'calendly_event_id': calendlyEventId,
+      'dnr_alert_sent': dnrAlertSent,
+      'dnr_alert_sent_at': dnrAlertSentAt?.toIso8601String(),
+      'satisfaction_score': satisfactionScore,
+      'satisfaction_feedback': satisfactionFeedback,
+      'called_during_after_hours': calledDuringAfterHours,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+    };
+  }
 
   Lead copyWith({
     String? id,

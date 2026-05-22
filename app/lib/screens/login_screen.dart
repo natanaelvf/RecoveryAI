@@ -14,8 +14,9 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen>
     with SingleTickerProviderStateMixin {
+  // TODO: Clear pre-filled credentials before production release
   final _emailController = TextEditingController(text: 'jukka@virtanenlvi.fi');
-  final _passwordController = TextEditingController(text: '••••••••');
+  final _passwordController = TextEditingController(text: 'demo1234');
   bool _isLoading = false;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -43,11 +44,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Future<void> _handleLogin() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      return;
+    }
     setState(() => _isLoading = true);
-    await ref.read(authProvider).login(
-          _emailController.text,
-          _passwordController.text,
+    try {
+      await ref.read(authProvider).login(
+            _emailController.text,
+            _passwordController.text,
+          );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Login failed: ${e.toString()}'),
+            backgroundColor: Colors.red.shade700,
+          ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
