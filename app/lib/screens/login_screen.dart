@@ -4,7 +4,7 @@ import 'package:missed_lead_recovery/l10n/generated/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
 
-/// Login screen — matches the web prototype's login view.
+/// Login screen — email/password + Google native sign-in.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -14,10 +14,10 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen>
     with SingleTickerProviderStateMixin {
-  // TODO: Clear pre-filled credentials before production release
-  final _emailController = TextEditingController(text: 'jukka@virtanenlvi.fi');
-  final _passwordController = TextEditingController(text: 'demo1234');
-  bool _isLoading = false;
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isRegistering = false;
+  bool _obscurePassword = true;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
@@ -43,36 +43,85 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      return;
+  /// Client-side password strength validation (min 8 chars, 1 uppercase, 1 digit).
+  String? _validatePassword(String password) {
+    if (password.length < 8) return 'Password must be at least 8 characters';
+    if (!password.contains(RegExp(r'[A-Z]'))) {
+      return 'Include at least one uppercase letter';
     }
-    setState(() => _isLoading = true);
-    try {
-      await ref.read(authProvider).login(
-            _emailController.text,
-            _passwordController.text,
-          );
-    } catch (e) {
-      if (mounted) {
+    if (!password.contains(RegExp(r'[0-9]'))) {
+      return 'Include at least one number';
+    }
+    return null;
+  }
+
+  Future<void> _handleEmailAuth() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) return;
+
+    // For registration, enforce stricter password requirements client-side.
+    if (_isRegistering) {
+      final error = _validatePassword(password);
+      if (error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Login failed: ${e.toString()}'),
+            content: Text(error),
             backgroundColor: Colors.red.shade700,
           ),
         );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
+        return;
       }
     }
+
+    final auth = ref.read(authProvider);
+    if (_isRegistering) {
+      await auth.signUpWithEmail(email, password);
+    } else {
+      await auth.signInWithEmail(email, password);
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    await ref.read(authProvider).signInWithGoogle();
+  }
+
+  Future<void> _handleForgotPassword() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Enter your email address first'),
+          backgroundColor: Colors.orange.shade700,
+        ),
+      );
+      return;
+    }
+    await ref.read(authProvider).resetPassword(email);
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final colors = AppColors.of(context);
+    final authState = ref.watch(authProvider).state;
+
+    // Show error snackbar when auth state has an error.
+    ref.listen(authProvider, (previous, next) {
+      final msg = next.state.errorMessage;
+      if (msg != null && msg.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: msg.contains('Check your email') || msg.contains('reset link')
+                ? Colors.green.shade700
+                : Colors.red.shade700,
+          ),
+        );
+        next.clearError();
+      }
+    });
 
     return Scaffold(
       backgroundColor: colors.bgBase,
@@ -133,9 +182,52 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     l10n.loginSubtitle,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 24),
 
-                  // Email field
+                  // ─── Google sign-in button ───────────────────────
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      onPressed: authState.isLoading ? null : _handleGoogleSignIn,
+                      icon: Image.network(
+                        'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
+                        width: 20,
+                        height: 20,
+                        errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 24),
+                      ),
+                      label: Text(l10n.loginGoogleButton),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: colors.textPrimary,
+                        side: BorderSide(color: colors.borderSubtle),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // ─── OR divider ──────────────────────────────────
+                  Row(
+                    children: [
+                      Expanded(child: Divider(color: colors.borderSubtle)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(
+                          l10n.loginOrDivider,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: colors.textTertiary,
+                          ),
+                        ),
+                      ),
+                      Expanded(child: Divider(color: colors.borderSubtle)),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // ─── Email field ─────────────────────────────────
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -147,6 +239,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       TextField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
                         decoration: InputDecoration(
                           hintText: l10n.loginEmailPlaceholder,
                         ),
@@ -155,7 +248,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   ),
                   const SizedBox(height: 16),
 
-                  // Password field
+                  // ─── Password field ──────────────────────────────
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -166,22 +259,46 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       const SizedBox(height: 6),
                       TextField(
                         controller: _passwordController,
-                        obscureText: true,
+                        obscureText: _obscurePassword,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => _handleEmailAuth(),
                         decoration: InputDecoration(
                           hintText: l10n.loginPasswordPlaceholder,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: colors.textTertiary,
+                              size: 20,
+                            ),
+                            onPressed: () {
+                              setState(() => _obscurePassword = !_obscurePassword);
+                            },
+                          ),
                         ),
                       ),
+                      if (_isRegistering) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          l10n.loginPasswordRequirements,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: colors.textTertiary,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 24),
 
-                  // Submit button
+                  // ─── Submit button ───────────────────────────────
                   SizedBox(
                     width: double.infinity,
                     height: 48,
                     child: ElevatedButton(
-                      onPressed: _isLoading ? null : _handleLogin,
-                      child: _isLoading
+                      onPressed: authState.isLoading ? null : _handleEmailAuth,
+                      child: authState.isLoading
                           ? SizedBox(
                               width: 20,
                               height: 20,
@@ -190,22 +307,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                 color: colors.textInverse,
                               ),
                             )
-                          : Text(l10n.loginSubmit),
+                          : Text(
+                              _isRegistering
+                                  ? l10n.loginSignUp
+                                  : l10n.loginSubmit,
+                            ),
                     ),
                   ),
                   const SizedBox(height: 12),
 
-                  // Forgot password
+                  // ─── Toggle login / register ─────────────────────
                   TextButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      setState(() => _isRegistering = !_isRegistering);
+                    },
                     child: Text(
-                      l10n.loginForgot,
+                      _isRegistering
+                          ? l10n.loginBackToSignIn
+                          : l10n.loginCreateAccount,
                       style: TextStyle(
                         fontSize: 13,
-                        color: colors.textTertiary,
+                        color: colors.accentPrimary,
                       ),
                     ),
                   ),
+
+                  // ─── Forgot password (only in login mode) ───────
+                  if (!_isRegistering)
+                    TextButton(
+                      onPressed: authState.isLoading ? null : _handleForgotPassword,
+                      child: Text(
+                        l10n.loginForgot,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: colors.textTertiary,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),

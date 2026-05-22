@@ -1,8 +1,12 @@
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../providers/auth_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+
+import '../config/supabase_config.dart';
 import '../providers/onboarding_provider.dart';
 import '../screens/login_screen.dart';
 import '../screens/dashboard_screen.dart';
@@ -13,37 +17,53 @@ import '../screens/profile_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 import '../widgets/bottom_nav_shell.dart';
 
-/// Combines auth + onboarding into a single Listenable for GoRouter.refreshListenable.
+/// Bridges the Supabase auth state stream + onboarding completion
+/// into a single [ChangeNotifier] that GoRouter can listen to.
 /// Only fires when isAuthenticated or isComplete actually change — NOT on every
 /// keystroke or step change within onboarding.
 class _RouterRefreshNotifier extends ChangeNotifier {
   bool _wasAuthenticated = false;
   bool _wasOnboardingComplete = false;
+  late final StreamSubscription<sb.AuthState> _authSub;
 
-  void update(bool isAuthenticated, bool isOnboardingComplete) {
-    if (isAuthenticated != _wasAuthenticated ||
-        isOnboardingComplete != _wasOnboardingComplete) {
-      _wasAuthenticated = isAuthenticated;
+  _RouterRefreshNotifier() {
+    // Seed from the current session.
+    _wasAuthenticated = supabase.auth.currentSession != null;
+
+    // React to Supabase auth changes.
+    _authSub = supabase.auth.onAuthStateChange.listen((data) {
+      final isNowAuthenticated = data.session != null;
+      if (isNowAuthenticated != _wasAuthenticated) {
+        _wasAuthenticated = isNowAuthenticated;
+        notifyListeners();
+      }
+    });
+  }
+
+  /// Called by the onboarding provider listener.
+  void updateOnboarding(bool isOnboardingComplete) {
+    if (isOnboardingComplete != _wasOnboardingComplete) {
       _wasOnboardingComplete = isOnboardingComplete;
       notifyListeners();
     }
+  }
+
+  @override
+  void dispose() {
+    _authSub.cancel();
+    super.dispose();
   }
 }
 
 final _routerRefreshProvider = Provider<_RouterRefreshNotifier>((ref) {
   final notifier = _RouterRefreshNotifier();
 
-  // Listen to auth and onboarding changes, but only propagate
-  // when the values the redirect actually cares about change.
-  ref.listen(authProvider, (_, auth) {
-    final onboarding = ref.read(onboardingProvider);
-    notifier.update(auth.isAuthenticated, onboarding.isComplete);
+  // Listen to onboarding changes only (auth is handled via Supabase stream).
+  ref.listen(onboardingProvider, (_, onboarding) {
+    notifier.updateOnboarding(onboarding.isComplete);
   });
 
-  ref.listen(onboardingProvider, (_, onboarding) {
-    final auth = ref.read(authProvider);
-    notifier.update(auth.isAuthenticated, onboarding.isComplete);
-  });
+  ref.onDispose(() => notifier.dispose());
 
   return notifier;
 });
@@ -62,9 +82,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: '/login',
     refreshListenable: refreshNotifier,
     redirect: (context, state) {
-      // Read current state at redirect time (not at provider creation time)
+      // Check Supabase session directly — the source of truth.
+      final isLoggedIn = supabase.auth.currentSession != null;
+
+      // Read onboarding state from the provider.
       final container = ProviderScope.containerOf(context);
-      final isLoggedIn = container.read(authProvider).isAuthenticated;
       final hasCompletedOnboarding = container.read(onboardingProvider).isComplete;
 
       final isLoginRoute = state.matchedLocation == '/login';

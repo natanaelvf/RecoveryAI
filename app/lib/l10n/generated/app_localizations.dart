@@ -197,6 +197,42 @@ abstract class AppLocalizations {
   /// **'Forgot password?'**
   String get loginForgot;
 
+  /// No description provided for @loginGoogleButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Google'**
+  String get loginGoogleButton;
+
+  /// No description provided for @loginOrDivider.
+  ///
+  /// In en, this message translates to:
+  /// **'or sign in with email'**
+  String get loginOrDivider;
+
+  /// No description provided for @loginCreateAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t have an account? Sign up'**
+  String get loginCreateAccount;
+
+  /// No description provided for @loginBackToSignIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Already have an account? Sign in'**
+  String get loginBackToSignIn;
+
+  /// No description provided for @loginSignUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Account'**
+  String get loginSignUp;
+
+  /// No description provided for @loginPasswordRequirements.
+  ///
+  /// In en, this message translates to:
+  /// **'Min 8 characters, 1 uppercase, 1 number'**
+  String get loginPasswordRequirements;
+
   /// No description provided for @dashboardTitle.
   ///
   /// In en, this message translates to:
@@ -436,6 +472,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Lead Info'**
   String get leadDetailLeadInfo;
+
+  /// No description provided for @leadDetailCosts.
+  ///
+  /// In en, this message translates to:
+  /// **'Costs'**
+  String get leadDetailCosts;
+
+  /// No description provided for @leadDetailTotalCosts.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Costs'**
+  String get leadDetailTotalCosts;
+
+  /// No description provided for @leadDetailNetRevenue.
+  ///
+  /// In en, this message translates to:
+  /// **'Net Revenue'**
+  String get leadDetailNetRevenue;
+
+  /// No description provided for @leadDetailAddCost.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Cost'**
+  String get leadDetailAddCost;
+
+  /// No description provided for @leadDetailCostDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get leadDetailCostDescription;
+
+  /// No description provided for @leadDetailCostAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get leadDetailCostAmount;
+
+  /// No description provided for @leadDetailNoCosts.
+  ///
+  /// In en, this message translates to:
+  /// **'No costs recorded yet'**
+  String get leadDetailNoCosts;
+
+  /// No description provided for @leadDetailEditValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Expected Revenue'**
+  String get leadDetailEditValue;
 
   /// No description provided for @settingsTitle.
   ///
@@ -748,6 +832,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'New missed call from {phone}'**
   String toastNewLead(String phone);
+
+  /// No description provided for @toastCostAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Cost added'**
+  String get toastCostAdded;
+
+  /// No description provided for @toastValueUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Revenue updated'**
+  String get toastValueUpdated;
 
   /// No description provided for @timeJustNow.
   ///

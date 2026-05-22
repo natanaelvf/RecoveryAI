@@ -6,6 +6,8 @@ enum ActivityType {
   dnrAlert,
   leadCompleted,
   satisfactionReceived,
+  revenueUpdated,
+  costAdded,
 }
 
 class ActivityEvent {
@@ -30,6 +32,8 @@ class ActivityEvent {
       case ActivityType.dnrAlert: return '⚠️';
       case ActivityType.leadCompleted: return '✅';
       case ActivityType.satisfactionReceived: return '⭐';
+      case ActivityType.revenueUpdated: return '💰';
+      case ActivityType.costAdded: return '🧾';
     }
   }
 }

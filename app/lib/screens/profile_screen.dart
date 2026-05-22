@@ -195,7 +195,7 @@ class ProfileScreen extends ConsumerWidget {
                       ElevatedButton(
                         onPressed: () {
                           Navigator.pop(ctx);
-                          ref.read(authProvider).logout();
+                          ref.read(authProvider).signOut();
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: colors.accentDanger,

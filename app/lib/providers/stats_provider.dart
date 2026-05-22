@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/mock_data.dart';
-import '../models/activity_event.dart';
 import '../models/lead.dart';
 import '../widgets/month_calendar.dart';
 import 'leads_provider.dart';
@@ -96,10 +95,6 @@ final pipelineCountsProvider = Provider<Map<String, int>>((ref) {
 /// Selected time range for the revenue chart.
 final timeRangeProvider = StateProvider<String>((ref) => '30d');
 
-/// Activity events — mock data for now.
-final activityEventsProvider = Provider<List<ActivityEvent>>((ref) {
-  return generateMockActivityEvents();
-});
 
 /// Selected calendar date — defaults to today.
 final selectedCalendarDateProvider = StateProvider<DateTime>((ref) {

@@ -62,7 +62,7 @@ class LeadDetailScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           // Lead info card
-          _InfoCard(lead: lead, l10n: l10n),
+          _InfoCard(lead: lead, l10n: l10n, leadId: leadId),
 
           const SizedBox(height: 12),
 
@@ -109,6 +109,10 @@ class LeadDetailScreen extends ConsumerWidget {
               ),
             ),
           ],
+
+          // Costs section
+          const SizedBox(height: 12),
+          _CostsCard(lead: lead, leadId: leadId),
 
           // Satisfaction feedback
           if (lead.satisfactionFeedback != null) ...[
@@ -175,14 +179,15 @@ class LeadDetailScreen extends ConsumerWidget {
 }
 
 /// Lead info card with pipeline, key details, and badges.
-class _InfoCard extends StatelessWidget {
+class _InfoCard extends ConsumerWidget {
   final Lead lead;
   final AppLocalizations l10n;
+  final String leadId;
 
-  const _InfoCard({required this.lead, required this.l10n});
+  const _InfoCard({required this.lead, required this.l10n, required this.leadId});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = AppColors.of(context);
 
     return Container(
@@ -214,10 +219,30 @@ class _InfoCard extends StatelessWidget {
           _InfoRow(label: l10n.leadDetailCreated, value: app_date.formatDate(lead.createdAt)),
           if (lead.bookingTime != null)
             _InfoRow(label: l10n.leadDetailBookingTime, value: app_date.formatDate(lead.bookingTime)),
+          // Tappable estimated value row
           _InfoRow(
             label: l10n.leadDetailEstimatedValue,
-            value: lead.estimatedValue != null ? '€${lead.estimatedValue!.toInt()}' : '—',
-            valueColor: colors.accentSuccess,
+            child: GestureDetector(
+              onTap: () => _showEditValueDialog(context, ref),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    lead.estimatedValue != null ? '€${lead.estimatedValue!.toInt()}' : '—',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: colors.accentSuccess,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(
+                    Icons.edit_rounded,
+                    size: 14,
+                    color: colors.textTertiary,
+                  ),
+                ],
+              ),
+            ),
           ),
           _InfoRow(
             label: l10n.leadDetailCallCount,
@@ -235,6 +260,311 @@ class _InfoCard extends StatelessWidget {
               value: 'Yes',
               valueColor: colors.accentDanger,
             ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditValueDialog(BuildContext context, WidgetRef ref) {
+    final colors = AppColors.of(context);
+    final controller = TextEditingController(
+      text: lead.estimatedValue?.toInt().toString() ?? '',
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colors.bgSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Row(
+          children: [
+            Icon(Icons.euro_rounded, size: 20, color: colors.accentSuccess),
+            const SizedBox(width: 8),
+            const Text('Edit Expected Revenue'),
+          ],
+        ),
+        content: TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          autofocus: true,
+          decoration: InputDecoration(
+            prefixText: '€ ',
+            hintText: '0',
+            filled: true,
+            fillColor: colors.bgElevated,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: colors.borderSubtle),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Cancel', style: TextStyle(color: colors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final value = double.tryParse(controller.text);
+              if (value != null && value >= 0) {
+                ref.read(leadsProvider).updateEstimatedValue(leadId, value);
+                Navigator.of(ctx).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Revenue updated')),
+                );
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Job costs card — shows individual costs and a total, with add button.
+class _CostsCard extends ConsumerWidget {
+  final Lead lead;
+  final String leadId;
+
+  const _CostsCard({required this.lead, required this.leadId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = AppColors.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.bgSurface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colors.borderSubtle),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Costs', style: Theme.of(context).textTheme.headlineMedium),
+              GestureDetector(
+                onTap: () => _showAddCostDialog(context, ref),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: colors.accentPrimaryMuted,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add_rounded, size: 14, color: colors.accentPrimary),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Add Cost',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: colors.accentPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          if (lead.costs.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'No costs recorded yet',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: colors.textTertiary,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            )
+          else ...[
+            ...lead.costs.map((cost) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      Text(
+                        '🧾',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              cost.description,
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontSize: 13,
+                                  ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              _formatCostDate(cost.createdAt),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: colors.textTertiary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        '€${cost.amount.toStringAsFixed(cost.amount == cost.amount.roundToDouble() ? 0 : 2)}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: colors.accentDanger,
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
+            const SizedBox(height: 6),
+            Divider(color: colors.borderSubtle, height: 1),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Total Costs',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                ),
+                Text(
+                  '€${lead.totalCosts.toStringAsFixed(lead.totalCosts == lead.totalCosts.roundToDouble() ? 0 : 2)}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: colors.accentDanger,
+                  ),
+                ),
+              ],
+            ),
+          ],
+
+          // Revenue vs Costs summary (only when both exist)
+          if (lead.estimatedValue != null && lead.costs.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Divider(color: colors.borderSubtle, height: 1),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Net Revenue',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                ),
+                Text(
+                  '€${(lead.estimatedValue! - lead.totalCosts).toInt()}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: (lead.estimatedValue! - lead.totalCosts) >= 0
+                        ? colors.accentSuccess
+                        : colors.accentDanger,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _formatCostDate(DateTime date) {
+    return '${date.day}.${date.month}.${date.year}';
+  }
+
+  void _showAddCostDialog(BuildContext context, WidgetRef ref) {
+    final colors = AppColors.of(context);
+    final descController = TextEditingController();
+    final amountController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colors.bgSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Row(
+          children: [
+            const Text('🧾', style: TextStyle(fontSize: 20)),
+            const SizedBox(width: 8),
+            const Text('Add Cost'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: descController,
+              autofocus: true,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                labelText: 'Description',
+                hintText: 'e.g. Materials, Labour, Travel',
+                filled: true,
+                fillColor: colors.bgElevated,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: colors.borderSubtle),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: amountController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                labelText: 'Amount',
+                prefixText: '€ ',
+                hintText: '0',
+                filled: true,
+                fillColor: colors.bgElevated,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: colors.borderSubtle),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Cancel', style: TextStyle(color: colors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final desc = descController.text.trim();
+              final amount = double.tryParse(amountController.text);
+              if (desc.isNotEmpty && amount != null && amount > 0) {
+                ref.read(leadsProvider).addCost(leadId, desc, amount);
+                Navigator.of(ctx).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Cost added')),
+                );
+              }
+            },
+            child: const Text('Add'),
+          ),
         ],
       ),
     );

@@ -121,6 +121,39 @@ enum Urgency {
   }
 }
 
+/// A single cost entry for a job — tracked in parallel with revenue.
+class JobCost {
+  final String id;
+  final String description;
+  final double amount;
+  final DateTime createdAt;
+
+  const JobCost({
+    required this.id,
+    required this.description,
+    required this.amount,
+    required this.createdAt,
+  });
+
+  factory JobCost.fromJson(Map<String, dynamic> json) {
+    return JobCost(
+      id: json['id'] as String,
+      description: json['description'] as String,
+      amount: (json['amount'] as num).toDouble(),
+      createdAt: DateTime.parse(json['created_at'] as String),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'description': description,
+      'amount': amount,
+      'created_at': createdAt.toIso8601String(),
+    };
+  }
+}
+
 class Lead {
   final String id;
   final String contractorId;
@@ -140,8 +173,12 @@ class Lead {
   final int? satisfactionScore;
   final String? satisfactionFeedback;
   final bool calledDuringAfterHours;
+  final List<JobCost> costs;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// Total costs for this job (tracked separately from revenue).
+  double get totalCosts => costs.fold(0, (sum, c) => sum + c.amount);
 
   const Lead({
     required this.id,
@@ -162,6 +199,7 @@ class Lead {
     this.satisfactionScore,
     this.satisfactionFeedback,
     this.calledDuringAfterHours = false,
+    this.costs = const [],
     required this.createdAt,
     required this.updatedAt,
   });
@@ -196,6 +234,9 @@ class Lead {
       satisfactionScore: json['satisfaction_score'] as int?,
       satisfactionFeedback: json['satisfaction_feedback'] as String?,
       calledDuringAfterHours: json['called_during_after_hours'] as bool? ?? false,
+      costs: (json['costs'] as List<dynamic>?)
+          ?.map((c) => JobCost.fromJson(c as Map<String, dynamic>))
+          .toList() ?? [],
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );
@@ -222,6 +263,7 @@ class Lead {
       'satisfaction_score': satisfactionScore,
       'satisfaction_feedback': satisfactionFeedback,
       'called_during_after_hours': calledDuringAfterHours,
+      'costs': costs.map((c) => c.toJson()).toList(),
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -246,6 +288,7 @@ class Lead {
     int? satisfactionScore,
     String? satisfactionFeedback,
     bool? calledDuringAfterHours,
+    List<JobCost>? costs,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -268,6 +311,7 @@ class Lead {
       satisfactionScore: satisfactionScore ?? this.satisfactionScore,
       satisfactionFeedback: satisfactionFeedback ?? this.satisfactionFeedback,
       calledDuringAfterHours: calledDuringAfterHours ?? this.calledDuringAfterHours,
+      costs: costs ?? this.costs,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

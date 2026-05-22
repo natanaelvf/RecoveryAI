@@ -19,6 +19,12 @@
   "loginPasswordPlaceholder": "Enter your password",
   "loginSubmit": "Sign In",
   "loginForgot": "Forgot password?",
+  "loginGoogleButton": "Continue with Google",
+  "loginOrDivider": "or sign in with email",
+  "loginCreateAccount": "Don't have an account? Sign up",
+  "loginBackToSignIn": "Already have an account? Sign in",
+  "loginSignUp": "Create Account",
+  "loginPasswordRequirements": "Min 8 characters, 1 uppercase, 1 number",
 
   "dashboardTitle": "Dashboard",
   "dashboardRecoveredRevenue": "Recovered Revenue",
@@ -67,6 +73,14 @@
   "leadDetailIssue": "Issue",
   "leadDetailFeedback": "Feedback",
   "leadDetailLeadInfo": "Lead Info",
+  "leadDetailCosts": "Costs",
+  "leadDetailTotalCosts": "Total Costs",
+  "leadDetailNetRevenue": "Net Revenue",
+  "leadDetailAddCost": "Add Cost",
+  "leadDetailCostDescription": "Description",
+  "leadDetailCostAmount": "Amount",
+  "leadDetailNoCosts": "No costs recorded yet",
+  "leadDetailEditValue": "Edit Expected Revenue",
 
   "settingsTitle": "Settings",
   "settingsBusinessInfo": "Business Information",
@@ -136,6 +150,8 @@
       "phone": { "type": "String" }
     }
   },
+  "toastCostAdded": "Cost added",
+  "toastValueUpdated": "Revenue updated",
 
   "timeJustNow": "Just now",
   "timeMinutesAgo": "{count}m ago",

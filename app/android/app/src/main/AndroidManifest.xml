@@ -1,4 +1,7 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.android.recoveryai"
+    android:versionCode="1"
+    android:versionName="1.0">
     <application
         android:label="missed_lead_recovery"
         android:name="${applicationName}"
@@ -23,6 +26,14 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <!-- Deep link for Supabase Auth OAuth callback -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.missedleadrecovery.missed_lead_recovery"
+                      android:host="login-callback" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

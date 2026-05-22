@@ -60,6 +60,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loginForgot => 'Forgot password?';
 
   @override
+  String get loginGoogleButton => 'Continue with Google';
+
+  @override
+  String get loginOrDivider => 'or sign in with email';
+
+  @override
+  String get loginCreateAccount => 'Don\'t have an account? Sign up';
+
+  @override
+  String get loginBackToSignIn => 'Already have an account? Sign in';
+
+  @override
+  String get loginSignUp => 'Create Account';
+
+  @override
+  String get loginPasswordRequirements => 'Min 8 characters, 1 uppercase, 1 number';
+
+  @override
   String get dashboardTitle => 'Dashboard';
 
   @override
@@ -180,6 +198,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get leadDetailLeadInfo => 'Lead Info';
+
+  @override
+  String get leadDetailCosts => 'Costs';
+
+  @override
+  String get leadDetailTotalCosts => 'Total Costs';
+
+  @override
+  String get leadDetailNetRevenue => 'Net Revenue';
+
+  @override
+  String get leadDetailAddCost => 'Add Cost';
+
+  @override
+  String get leadDetailCostDescription => 'Description';
+
+  @override
+  String get leadDetailCostAmount => 'Amount';
+
+  @override
+  String get leadDetailNoCosts => 'No costs recorded yet';
+
+  @override
+  String get leadDetailEditValue => 'Edit Expected Revenue';
 
   @override
   String get settingsTitle => 'Settings';
@@ -340,6 +382,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String toastNewLead(String phone) {
     return 'New missed call from $phone';
   }
+
+  @override
+  String get toastCostAdded => 'Cost added';
+
+  @override
+  String get toastValueUpdated => 'Revenue updated';
 
   @override
   String get timeJustNow => 'Just now';

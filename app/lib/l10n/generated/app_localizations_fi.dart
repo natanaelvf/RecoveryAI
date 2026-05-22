@@ -60,6 +60,24 @@ class AppLocalizationsFi extends AppLocalizations {
   String get loginForgot => 'Unohditko salasanan?';
 
   @override
+  String get loginGoogleButton => 'Jatka Googlella';
+
+  @override
+  String get loginOrDivider => 'tai kirjaudu sähköpostilla';
+
+  @override
+  String get loginCreateAccount => 'Ei tiliä? Rekisteröidy';
+
+  @override
+  String get loginBackToSignIn => 'Onko sinulla tili? Kirjaudu';
+
+  @override
+  String get loginSignUp => 'Luo tili';
+
+  @override
+  String get loginPasswordRequirements => 'Vähintään 8 merkkiä, 1 iso kirjain, 1 numero';
+
+  @override
   String get dashboardTitle => 'Yhteenveto';
 
   @override
@@ -180,6 +198,30 @@ class AppLocalizationsFi extends AppLocalizations {
 
   @override
   String get leadDetailLeadInfo => 'Liidin tiedot';
+
+  @override
+  String get leadDetailCosts => 'Kustannukset';
+
+  @override
+  String get leadDetailTotalCosts => 'Kustannukset yhteensä';
+
+  @override
+  String get leadDetailNetRevenue => 'Nettoliikevaihto';
+
+  @override
+  String get leadDetailAddCost => 'Lisää kustannus';
+
+  @override
+  String get leadDetailCostDescription => 'Kuvaus';
+
+  @override
+  String get leadDetailCostAmount => 'Summa';
+
+  @override
+  String get leadDetailNoCosts => 'Ei kustannuksia vielä';
+
+  @override
+  String get leadDetailEditValue => 'Muokkaa arvioitua liikevaihtoa';
 
   @override
   String get settingsTitle => 'Asetukset';
@@ -340,6 +382,12 @@ class AppLocalizationsFi extends AppLocalizations {
   String toastNewLead(String phone) {
     return 'Uusi vastaamaton puhelu: $phone';
   }
+
+  @override
+  String get toastCostAdded => 'Kustannus lisätty';
+
+  @override
+  String get toastValueUpdated => 'Liikevaihto päivitetty';
 
   @override
   String get timeJustNow => 'Juuri nyt';

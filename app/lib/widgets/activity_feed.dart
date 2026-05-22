@@ -128,6 +128,10 @@ class ActivityFeed extends StatelessWidget {
         return 'View completed lead';
       case ActivityType.satisfactionReceived:
         return 'View feedback';
+      case ActivityType.revenueUpdated:
+        return 'Revenue estimate updated';
+      case ActivityType.costAdded:
+        return 'View cost details';
     }
   }
 

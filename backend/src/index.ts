@@ -14,6 +14,7 @@ import contractorApi from './routes/api/contractor';
 
 // --- Middleware imports ---
 import { twilioSignatureMiddleware } from './middleware/twilio-signature';
+import { authMiddleware } from './middleware/auth';
 
 // --- Cron job imports ---
 import { runDnrCheck } from './jobs/dnr-check';
@@ -52,9 +53,9 @@ app.use('/webhooks/twilio-sms', twilioSignatureMiddleware, twilioSmsWebhook);
 app.use('/webhooks/calendly', calendlyWebhook);
 
 // --- API routes (auth required) ---
-app.use('/api/leads', leadsApi);
-app.use('/api/stats', statsApi);
-app.use('/api/contractor', contractorApi);
+app.use('/api/leads', authMiddleware, leadsApi);
+app.use('/api/stats', authMiddleware, statsApi);
+app.use('/api/contractor', authMiddleware, contractorApi);
 
 // --- Cron jobs ---
 // DNR check: every 15 minutes

@@ -31,6 +31,15 @@ dependencies:
   # Phone/URL launching
   url_launcher: ^6.3.1
 
+  # Supabase Auth
+  supabase_flutter: ^2.8.0
+
+  # Native Google Sign-In
+  google_sign_in: ^6.2.2
+
+  # Environment config
+  flutter_dotenv: ^5.2.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -39,3 +48,6 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true
+  assets:
+    - .env.dev
+    - .env.prod
