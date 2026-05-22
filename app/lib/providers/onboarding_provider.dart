@@ -32,18 +32,9 @@ class OnboardingNotifier extends ChangeNotifier {
   bool get isComplete => _isComplete;
   int get totalSteps => 4;
 
-  /// Can advance from current step (basic validation).
-  bool get canAdvance {
-    switch (_currentStep) {
-      case 0: return businessName.trim().isNotEmpty && tradeType != null;
-      case 1: return contactName.trim().isNotEmpty
-          && contactEmail.trim().isNotEmpty
-          && contactPhone.trim().isNotEmpty;
-      case 2: return phoneNumber.trim().isNotEmpty;
-      case 3: return workingDays.isNotEmpty;
-      default: return false;
-    }
-  }
+  /// Can advance from current step.
+  /// Always allows advancing — fields are optional during onboarding.
+  bool get canAdvance => true;
 
   void goToStep(int step) {
     if (step >= 0 && step < totalSteps) {

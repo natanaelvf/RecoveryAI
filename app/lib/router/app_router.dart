@@ -1,4 +1,5 @@
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
@@ -12,19 +13,62 @@ import '../screens/profile_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 import '../widgets/bottom_nav_shell.dart';
 
+/// Combines auth + onboarding into a single Listenable for GoRouter.refreshListenable.
+/// Only fires when isAuthenticated or isComplete actually change — NOT on every
+/// keystroke or step change within onboarding.
+class _RouterRefreshNotifier extends ChangeNotifier {
+  bool _wasAuthenticated = false;
+  bool _wasOnboardingComplete = false;
+
+  void update(bool isAuthenticated, bool isOnboardingComplete) {
+    if (isAuthenticated != _wasAuthenticated ||
+        isOnboardingComplete != _wasOnboardingComplete) {
+      _wasAuthenticated = isAuthenticated;
+      _wasOnboardingComplete = isOnboardingComplete;
+      notifyListeners();
+    }
+  }
+}
+
+final _routerRefreshProvider = Provider<_RouterRefreshNotifier>((ref) {
+  final notifier = _RouterRefreshNotifier();
+
+  // Listen to auth and onboarding changes, but only propagate
+  // when the values the redirect actually cares about change.
+  ref.listen(authProvider, (_, auth) {
+    final onboarding = ref.read(onboardingProvider);
+    notifier.update(auth.isAuthenticated, onboarding.isComplete);
+  });
+
+  ref.listen(onboardingProvider, (_, onboarding) {
+    final auth = ref.read(authProvider);
+    notifier.update(auth.isAuthenticated, onboarding.isComplete);
+  });
+
+  return notifier;
+});
+
 /// App router configuration using go_router.
 /// Routes: /login, /onboarding, /dashboard, /leads, /leads/:id, /settings, /profile
+///
+/// IMPORTANT: The GoRouter is created ONCE. Redirect re-evaluation is triggered
+/// via refreshListenable when auth or onboarding completion status changes.
+/// This prevents the router from being destroyed/recreated on every
+/// onboarding field change (which would reset the PageView to page 0).
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final auth = ref.watch(authProvider);
-  final onboarding = ref.watch(onboardingProvider);
+  final refreshNotifier = ref.watch(_routerRefreshProvider);
 
   return GoRouter(
     initialLocation: '/login',
+    refreshListenable: refreshNotifier,
     redirect: (context, state) {
-      final isLoggedIn = auth.isAuthenticated;
+      // Read current state at redirect time (not at provider creation time)
+      final container = ProviderScope.containerOf(context);
+      final isLoggedIn = container.read(authProvider).isAuthenticated;
+      final hasCompletedOnboarding = container.read(onboardingProvider).isComplete;
+
       final isLoginRoute = state.matchedLocation == '/login';
       final isOnboardingRoute = state.matchedLocation == '/onboarding';
-      final hasCompletedOnboarding = onboarding.isComplete;
 
       // Not logged in → force login
       if (!isLoggedIn && !isLoginRoute) return '/login';

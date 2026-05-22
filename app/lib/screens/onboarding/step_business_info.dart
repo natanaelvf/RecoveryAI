@@ -5,11 +5,38 @@ import '../../theme/app_colors.dart';
 import '../../widgets/trade_type_picker.dart';
 
 /// Step 1: Business Info — business name + trade type.
-class StepBusinessInfo extends ConsumerWidget {
+class StepBusinessInfo extends ConsumerStatefulWidget {
   const StepBusinessInfo({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<StepBusinessInfo> createState() => _StepBusinessInfoState();
+}
+
+class _StepBusinessInfoState extends ConsumerState<StepBusinessInfo> {
+  late TextEditingController _nameCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    final ob = ref.read(onboardingProvider);
+    _nameCtrl = TextEditingController(text: ob.businessName);
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  void _syncName() {
+    final ob = ref.read(onboardingProvider);
+    ob.businessName = _nameCtrl.text;
+    // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+    ob.notifyListeners();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     final onboarding = ref.watch(onboardingProvider);
 
@@ -42,18 +69,8 @@ class StepBusinessInfo extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           TextField(
-            onChanged: (value) {
-              onboarding.businessName = value;
-              // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
-              onboarding.notifyListeners();
-            },
-            controller: TextEditingController.fromValue(
-              TextEditingValue(
-                text: onboarding.businessName,
-                selection: TextSelection.collapsed(
-                    offset: onboarding.businessName.length),
-              ),
-            ),
+            controller: _nameCtrl,
+            onChanged: (_) => _syncName(),
             decoration: const InputDecoration(
               hintText: 'e.g. Virtanen LVI Oy',
             ),

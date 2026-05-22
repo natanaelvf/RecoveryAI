@@ -68,7 +68,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     final colors = AppColors.of(context);
     final onboarding = ref.watch(onboardingProvider);
     final currentStep = onboarding.currentStep;
-    final canAdvance = onboarding.canAdvance;
 
     if (_showSuccess) {
       return Scaffold(
@@ -219,7 +218,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () {
-                          ref.read(onboardingProvider).previousStep();
                           _goToStep(currentStep - 1);
                         },
                         icon: const Icon(Icons.arrow_back_rounded, size: 18),
@@ -234,29 +232,22 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                   // Next / Complete
                   Expanded(
                     flex: 2,
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 200),
-                      opacity: canAdvance ? 1.0 : 0.5,
-                      child: ElevatedButton.icon(
-                        onPressed: canAdvance
-                            ? () {
-                                if (currentStep < 3) {
-                                  ref.read(onboardingProvider).nextStep();
-                                  _goToStep(currentStep + 1);
-                                } else {
-                                  _handleComplete();
-                                }
-                              }
-                            : null,
-                        icon: Icon(
-                          currentStep < 3
-                              ? Icons.arrow_forward_rounded
-                              : Icons.check_rounded,
-                          size: 18,
-                        ),
-                        label: Text(
-                          currentStep < 3 ? 'Continue' : 'Complete Setup',
-                        ),
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        if (currentStep < 3) {
+                          _goToStep(currentStep + 1);
+                        } else {
+                          _handleComplete();
+                        }
+                      },
+                      icon: Icon(
+                        currentStep < 3
+                            ? Icons.arrow_forward_rounded
+                            : Icons.check_rounded,
+                        size: 18,
+                      ),
+                      label: Text(
+                        currentStep < 3 ? 'Continue' : 'Complete Setup',
                       ),
                     ),
                   ),
