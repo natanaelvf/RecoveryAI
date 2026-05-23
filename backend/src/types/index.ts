@@ -25,7 +25,7 @@ export enum Urgency {
 
 export type NumberSetupType = 'forwarding' | 'new_number';
 export type Tier = 'starter' | 'growth' | 'pro';
-export type Locale = 'fi' | 'en';
+export type Locale = 'fi' | 'en' | 'pt';
 export type MessageDirection = 'inbound' | 'outbound';
 export type ScheduledTaskType = 'dnr_check' | 'satisfaction_followup' | 'reminder' | 'consent_timeout';
 

@@ -69,12 +69,42 @@ const TEMPLATES_FI: TemplateSet = {
     `Ei hätää! Emme lähetä sinulle enää viestejä. Jos tarvitset apua tulevaisuudessa, soita meille.`,
 };
 
+const TEMPLATES_PT: TemplateSet = {
+  consentRequest: (businessName) =>
+    `Olá! Você ligou para ${businessName} mas não conseguimos atender. Gostaríamos de ajudá-lo por SMS. Responda SIM para continuar ou NÃO para cancelar. Política de privacidade: https://recoveryai.fi/privacy`,
+
+  askIssue: (_businessName) =>
+    `Obrigado! Pode descrever brevemente o problema que precisa resolver? (ex: "cano vazando", "ar-condicionado quebrado")`,
+
+  askUrgency: () =>
+    `Qual a urgência?\n1 - Sem pressa, pode esperar alguns dias\n2 - Em breve, nas próximas 24-48h\n3 - Urgente, preciso de ajuda hoje\n4 - Emergência, preciso de ajuda agora`,
+
+  askName: () =>
+    `Obrigado! Qual é o seu nome?`,
+
+  bookingLink: (businessName, calendlyUrl) =>
+    `Obrigado! Aqui está o link para agendar um horário com ${businessName}: ${calendlyUrl}\nConfirmaremos assim que o agendamento for feito!`,
+
+  bookingConfirmation: (businessName, bookingTime) =>
+    `Seu agendamento com ${businessName} está confirmado para ${bookingTime}. Estamos ansiosos para ajudá-lo!`,
+
+  satisfactionFollowup: (businessName) =>
+    `Olá! Como foi sua experiência com ${businessName}? Responda com um número de 1 a 5 (1=ruim, 5=excelente) e deixe seu comentário.`,
+
+  noConsent: () =>
+    `Sem problemas! Não enviaremos mais mensagens. Se precisar de ajuda no futuro, ligue para nós.`,
+};
+
 /**
  * Get the correct template set based on contractor locale.
  * Exported as getSmsTemplates for use by cron jobs and webhooks.
  */
 export function getSmsTemplates(locale: Locale): TemplateSet {
-  return locale === 'fi' ? TEMPLATES_FI : TEMPLATES_EN;
+  switch (locale) {
+    case 'fi': return TEMPLATES_FI;
+    case 'pt': return TEMPLATES_PT;
+    default:   return TEMPLATES_EN;
+  }
 }
 
 // Internal alias for use within this module.
@@ -194,14 +224,17 @@ export async function handleInboundSms(
     // --- Consent phase ---
     case LeadStatus.ConsentSent: {
       const upper = body.toUpperCase();
-      if (upper === 'YES' || upper === 'KYLLÄ' || upper === 'KYLLA') {
+      // Accept consent in EN/FI/PT
+      const yesWords = ['YES', 'KYLLÄ', 'KYLLA', 'SIM'];
+      const noWords = ['STOP', 'EI', 'NÃO', 'NAO', 'NO'];
+      if (yesWords.includes(upper)) {
         await updateLeadStatus(lead.id, LeadStatus.QualifyingIssue, {
           consent_given: true,
           consent_given_at: new Date().toISOString(),
         });
         const msg = T.askIssue(contractor.business_name);
         await sendAndRecord(lead, fromNumber, msg);
-      } else if (upper === 'STOP' || upper === 'EI') {
+      } else if (noWords.includes(upper)) {
         await updateLeadStatus(lead.id, LeadStatus.NoConsent);
         const msg = T.noConsent();
         await sendAndRecord(lead, fromNumber, msg);

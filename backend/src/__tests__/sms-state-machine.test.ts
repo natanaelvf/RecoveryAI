@@ -277,6 +277,61 @@ describe('SMS State Machine', () => {
       const smsBody = mockSendSms.mock.calls[0][2] as string;
       expect(smsBody).toContain('kiireellinen');
     });
+
+    it('should send Portuguese templates when locale is pt', async () => {
+      const lead = makeLead({ status: LeadStatus.QualifyingIssue });
+      const contractor = makeContractor({ locale: 'pt' });
+
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === 'leads') return mockChain(lead);
+        if (table === 'messages') return mockChain();
+        return mockChain();
+      });
+
+      await handleInboundSms(lead, 'Cano vazando', contractor);
+
+      expect(mockSendSms).toHaveBeenCalled();
+      const smsBody = mockSendSms.mock.calls[0][2] as string;
+      expect(smsBody).toContain('urgência');
+    });
+  });
+
+  // ─── Consent Keywords (multilingual) ──────────────────
+
+  describe('consent keywords', () => {
+    it('should accept "SIM" as consent (Portuguese YES)', async () => {
+      const lead = makeLead({ status: LeadStatus.ConsentSent });
+      const contractor = makeContractor({ locale: 'pt' });
+
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === 'leads') return mockChain(lead);
+        if (table === 'messages') return mockChain();
+        return mockChain();
+      });
+
+      await handleInboundSms(lead, 'SIM', contractor);
+
+      expect(mockSendSms).toHaveBeenCalled();
+      const smsBody = mockSendSms.mock.calls[0][2] as string;
+      expect(smsBody).toContain('descrever brevemente');
+    });
+
+    it('should accept "NÃO" as opt-out (Portuguese NO)', async () => {
+      const lead = makeLead({ status: LeadStatus.ConsentSent });
+      const contractor = makeContractor({ locale: 'pt' });
+
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === 'leads') return mockChain(lead);
+        if (table === 'messages') return mockChain();
+        return mockChain();
+      });
+
+      await handleInboundSms(lead, 'NÃO', contractor);
+
+      expect(mockSendSms).toHaveBeenCalled();
+      const smsBody = mockSendSms.mock.calls[0][2] as string;
+      expect(smsBody).toContain('Sem problemas');
+    });
   });
 
   // ─── Urgency Collection Phase ─────────────────────────
