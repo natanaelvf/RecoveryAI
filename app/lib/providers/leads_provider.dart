@@ -1,24 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../data/mock_data.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/activity_event.dart';
 import '../models/lead.dart';
 import '../models/message.dart';
+import '../services/api_service.dart';
 
-/// Dynamic activity event notifier — seeded with mock events,
-/// new events are pushed when actions occur (complete, revenue edit, cost add).
+final _api = ApiService();
+
+// ---------------------------------------------------------------------------
+// Activity feed — remains local (client-generated from mutations).
+// Will be wired to Realtime events in a later phase.
+// ---------------------------------------------------------------------------
+
 class ActivityNotifier extends ChangeNotifier {
-  final List<ActivityEvent> _events = List.from(generateMockActivityEvents());
+  final List<ActivityEvent> _events = [];
 
   List<ActivityEvent> get events => _events;
 
   void addEvent(ActivityEvent event) {
     _events.insert(0, event); // newest first
+    if (_events.length > 50) _events.removeLast(); // cap at 50
     notifyListeners();
   }
 }
 
-final activityNotifierProvider = ChangeNotifierProvider<ActivityNotifier>((ref) {
+final activityNotifierProvider =
+    ChangeNotifierProvider<ActivityNotifier>((ref) {
   return ActivityNotifier();
 });
 
@@ -27,138 +35,228 @@ final activityEventsProvider = Provider<List<ActivityEvent>>((ref) {
   return ref.watch(activityNotifierProvider).events;
 });
 
-/// Leads state — manages the full leads list, filtering, and search.
-class LeadsNotifier extends ChangeNotifier {
-  final List<Lead> _leads = List.from(mockLeads);
+// ---------------------------------------------------------------------------
+// Leads provider — async, Supabase-backed + Realtime
+// ---------------------------------------------------------------------------
 
-  /// Reference to the activity notifier for pushing events.
-  final ActivityNotifier _activityNotifier;
+class LeadsNotifier extends AsyncNotifier<List<Lead>> {
+  RealtimeChannel? _realtimeChannel;
 
-  LeadsNotifier(this._activityNotifier);
+  @override
+  Future<List<Lead>> build() async {
+    // Fetch all leads on init.
+    final leads = await _api.fetchAllLeads();
 
-  List<Lead> get leads => _leads;
+    // Subscribe to Realtime for live updates.
+    _setupRealtime();
 
-  void markComplete(String leadId) {
-    final idx = _leads.indexWhere((l) => l.id == leadId);
-    if (idx != -1) {
-      final lead = _leads[idx];
-      _leads[idx] = lead.copyWith(
-        status: LeadStatus.completed,
-        updatedAt: DateTime.now(),
-      );
+    // Clean up Realtime on dispose.
+    ref.onDispose(() {
+      if (_realtimeChannel != null) {
+        _api.unsubscribe(_realtimeChannel!);
+        _realtimeChannel = null;
+      }
+    });
 
-      // Push activity event
-      _activityNotifier.addEvent(ActivityEvent(
+    return leads;
+  }
+
+  void _setupRealtime() {
+    _realtimeChannel = _api.subscribeToLeads(
+      onInsert: (newRecord) {
+        final currentLeads = state.valueOrNull;
+        if (currentLeads == null) return;
+
+        try {
+          final newLead = Lead.fromJson(newRecord);
+          state = AsyncData([newLead, ...currentLeads]);
+
+          // Push activity event for new lead.
+          ref.read(activityNotifierProvider).addEvent(ActivityEvent(
+            type: ActivityType.newLead,
+            description: 'New lead: ${newLead.displayName}',
+            timestamp: DateTime.now(),
+            leadId: newLead.id,
+          ));
+        } catch (e) {
+          debugPrint('[realtime] Failed to parse inserted lead: $e');
+        }
+      },
+      onUpdate: (newRecord) {
+        final currentLeads = state.valueOrNull;
+        if (currentLeads == null) return;
+
+        try {
+          final updatedLead = Lead.fromJson(newRecord);
+          final updatedList = currentLeads.map((l) {
+            return l.id == updatedLead.id ? updatedLead : l;
+          }).toList();
+          state = AsyncData(updatedList);
+        } catch (e) {
+          debugPrint('[realtime] Failed to parse updated lead: $e');
+        }
+      },
+      onDelete: (oldRecord) {
+        final currentLeads = state.valueOrNull;
+        if (currentLeads == null) return;
+
+        final deletedId = oldRecord['id'] as String?;
+        if (deletedId != null) {
+          final updatedList =
+              currentLeads.where((l) => l.id != deletedId).toList();
+          state = AsyncData(updatedList);
+        }
+      },
+    );
+  }
+
+  /// Mark a lead as completed. Schedules satisfaction follow-up via Supabase.
+  Future<void> markComplete(String leadId) async {
+    try {
+      final updatedLead = await _api.markLeadComplete(leadId);
+
+      // Update local state immediately.
+      final currentLeads = state.valueOrNull ?? [];
+      state = AsyncData(currentLeads.map((l) {
+        return l.id == leadId ? updatedLead : l;
+      }).toList());
+
+      // Push activity event.
+      ref.read(activityNotifierProvider).addEvent(ActivityEvent(
         type: ActivityType.leadCompleted,
-        description: 'Lead completed: ${lead.displayName}',
+        description: 'Lead completed: ${updatedLead.displayName}',
         timestamp: DateTime.now(),
         leadId: leadId,
       ));
-
-      notifyListeners();
+    } catch (e) {
+      debugPrint('Failed to mark lead complete: $e');
+      rethrow;
     }
   }
 
   /// Update the estimated value (expected revenue) for a lead.
-  void updateEstimatedValue(String leadId, double newValue) {
-    final idx = _leads.indexWhere((l) => l.id == leadId);
-    if (idx != -1) {
-      final lead = _leads[idx];
-      final oldValue = lead.estimatedValue;
-      _leads[idx] = lead.copyWith(
-        estimatedValue: newValue,
-        updatedAt: DateTime.now(),
+  Future<void> updateEstimatedValue(String leadId, double newValue) async {
+    try {
+      final updatedLead = await _api.updateLead(
+        leadId,
+        {'estimated_value': newValue},
       );
 
-      // Push activity event
-      _activityNotifier.addEvent(ActivityEvent(
+      final currentLeads = state.valueOrNull ?? [];
+      final oldLead = currentLeads.firstWhere(
+        (l) => l.id == leadId,
+        orElse: () => updatedLead,
+      );
+
+      state = AsyncData(currentLeads.map((l) {
+        return l.id == leadId ? updatedLead : l;
+      }).toList());
+
+      // Push activity event.
+      ref.read(activityNotifierProvider).addEvent(ActivityEvent(
         type: ActivityType.revenueUpdated,
-        description: oldValue != null
-            ? 'Revenue updated: ${lead.displayName} — €${oldValue.toInt()} → €${newValue.toInt()}'
-            : 'Revenue set: ${lead.displayName} — €${newValue.toInt()}',
+        description: oldLead.estimatedValue != null
+            ? 'Revenue updated: ${updatedLead.displayName} — €${oldLead.estimatedValue!.toInt()} → €${newValue.toInt()}'
+            : 'Revenue set: ${updatedLead.displayName} — €${newValue.toInt()}',
         timestamp: DateTime.now(),
         leadId: leadId,
       ));
-
-      notifyListeners();
+    } catch (e) {
+      debugPrint('Failed to update estimated value: $e');
+      rethrow;
     }
   }
 
-  /// Add a cost entry to a lead (tracked separately from revenue).
-  void addCost(String leadId, String description, double amount) {
-    final idx = _leads.indexWhere((l) => l.id == leadId);
-    if (idx != -1) {
-      final lead = _leads[idx];
-      final cost = JobCost(
-        id: 'cost-${DateTime.now().millisecondsSinceEpoch}',
-        description: description,
-        amount: amount,
-        createdAt: DateTime.now(),
-      );
-      _leads[idx] = lead.copyWith(
-        costs: [...lead.costs, cost],
-        updatedAt: DateTime.now(),
-      );
+  /// Add a cost entry to a lead.
+  Future<void> addCost(
+      String leadId, String description, double amount) async {
+    try {
+      await _api.addCost(leadId, description, amount);
 
-      // Push activity event
-      _activityNotifier.addEvent(ActivityEvent(
+      // Re-fetch the lead to get updated costs list.
+      // (The lead model holds costs locally; we update via re-fetch.)
+      final costs = await _api.fetchJobCosts(leadId);
+      final currentLeads = state.valueOrNull ?? [];
+      state = AsyncData(currentLeads.map((l) {
+        if (l.id == leadId) {
+          return l.copyWith(costs: costs, updatedAt: DateTime.now());
+        }
+        return l;
+      }).toList());
+
+      // Push activity event.
+      final lead = currentLeads.firstWhere((l) => l.id == leadId);
+      ref.read(activityNotifierProvider).addEvent(ActivityEvent(
         type: ActivityType.costAdded,
-        description: 'Cost added: ${lead.displayName} — €${amount.toInt()} ($description)',
+        description:
+            'Cost added: ${lead.displayName} — €${amount.toInt()} ($description)',
         timestamp: DateTime.now(),
         leadId: leadId,
       ));
-
-      notifyListeners();
+    } catch (e) {
+      debugPrint('Failed to add cost: $e');
+      rethrow;
     }
   }
 
-  /// Add a lead manually — inserts at the top of the list.
-  void addLead({
+  /// Add a lead manually.
+  Future<void> addLead({
     required String phone,
     String? name,
     String? description,
-    String urgency = 'medium',
+    String urgency = 'unknown',
     double? estimatedValue,
-  }) {
-    final id = 'lead-manual-${DateTime.now().millisecondsSinceEpoch}';
-    final urgencyValue = _parseUrgency(urgency);
-
-    _leads.insert(
-      0,
-      Lead(
-        id: id,
-        contractorId: mockContractor.id,
-        callerPhone: phone,
-        callerName: name,
-        issueDescription: description,
-        urgency: urgencyValue,
-        status: LeadStatus.missed,
-        consentGiven: false,
-        callCount: 1,
+  }) async {
+    try {
+      final newLead = await _api.addLeadManually(
+        phone: phone,
+        name: name,
+        description: description,
+        urgency: urgency,
         estimatedValue: estimatedValue,
-        calledDuringAfterHours: false,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-    );
-    notifyListeners();
+      );
+
+      // Prepend to local state (Realtime will also fire, but we update
+      // optimistically to avoid delay).
+      final currentLeads = state.valueOrNull ?? [];
+      // Avoid duplicates if Realtime fires first.
+      if (!currentLeads.any((l) => l.id == newLead.id)) {
+        state = AsyncData([newLead, ...currentLeads]);
+      }
+    } catch (e) {
+      debugPrint('Failed to add lead: $e');
+      rethrow;
+    }
   }
 
-  Urgency _parseUrgency(String value) {
-    switch (value) {
-      case 'emergency': return Urgency.emergency;
-      case 'high': return Urgency.high;
-      case 'medium': return Urgency.medium;
-      case 'low': return Urgency.low;
-      default: return Urgency.unknown;
+  /// Force refresh all leads from Supabase.
+  Future<void> refresh() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() => _api.fetchAllLeads());
+  }
+
+  /// GDPR delete a lead.
+  Future<void> deleteLeadGdpr(String leadId) async {
+    try {
+      await _api.deleteLeadGdpr(leadId);
+
+      // Remove from local state.
+      final currentLeads = state.valueOrNull ?? [];
+      state =
+          AsyncData(currentLeads.where((l) => l.id != leadId).toList());
+    } catch (e) {
+      debugPrint('Failed to delete lead: $e');
+      rethrow;
     }
   }
 }
 
-final leadsProvider = ChangeNotifierProvider<LeadsNotifier>((ref) {
-  final activityNotifier = ref.read(activityNotifierProvider);
-  return LeadsNotifier(activityNotifier);
-});
+final leadsProvider =
+    AsyncNotifierProvider<LeadsNotifier, List<Lead>>(LeadsNotifier.new);
+
+// ---------------------------------------------------------------------------
+// Derived providers — same logic as before, but read from async source
+// ---------------------------------------------------------------------------
 
 /// Current status filter selection.
 final statusFilterProvider = StateProvider<String>((ref) => 'all');
@@ -167,8 +265,10 @@ final statusFilterProvider = StateProvider<String>((ref) => 'all');
 final searchQueryProvider = StateProvider<String>((ref) => '');
 
 /// Filtered + sorted leads derived provider.
+/// Returns an empty list while loading.
 final filteredLeadsProvider = Provider<List<Lead>>((ref) {
-  final allLeads = ref.watch(leadsProvider).leads;
+  final allLeadsAsync = ref.watch(leadsProvider);
+  final allLeads = allLeadsAsync.valueOrNull ?? [];
   final filter = ref.watch(statusFilterProvider);
   final query = ref.watch(searchQueryProvider).toLowerCase();
 
@@ -179,7 +279,8 @@ final filteredLeadsProvider = Provider<List<Lead>>((ref) {
 
   // Status filter
   if (filter != 'all') {
-    filtered = filtered.where((l) => l.status.filterCategory == filter).toList();
+    filtered =
+        filtered.where((l) => l.status.filterCategory == filter).toList();
   }
 
   // Search filter
@@ -187,8 +288,9 @@ final filteredLeadsProvider = Provider<List<Lead>>((ref) {
     filtered = filtered.where((l) {
       final nameMatch =
           l.callerName?.toLowerCase().contains(query) ?? false;
-      final phoneMatch =
-          l.callerPhone.replaceAll(' ', '').contains(query.replaceAll(' ', ''));
+      final phoneMatch = l.callerPhone
+          .replaceAll(' ', '')
+          .contains(query.replaceAll(' ', ''));
       return nameMatch || phoneMatch;
     }).toList();
   }
@@ -196,9 +298,10 @@ final filteredLeadsProvider = Provider<List<Lead>>((ref) {
   return filtered;
 });
 
-/// Lead by ID.
+/// Lead by ID — returns null while loading or if not found.
 final leadByIdProvider = Provider.family<Lead?, String>((ref, id) {
-  final leads = ref.watch(leadsProvider).leads;
+  final leadsAsync = ref.watch(leadsProvider);
+  final leads = leadsAsync.valueOrNull ?? [];
   try {
     return leads.firstWhere((l) => l.id == id);
   } catch (_) {
@@ -206,14 +309,23 @@ final leadByIdProvider = Provider.family<Lead?, String>((ref, id) {
   }
 });
 
-/// Messages for a specific lead.
-final messagesProvider = Provider.family<List<Message>, String>((ref, leadId) {
-  return mockMessages[leadId] ?? [];
+/// Messages for a specific lead — fetched from Supabase.
+final messagesProvider =
+    FutureProvider.family<List<Message>, String>((ref, leadId) async {
+  return _api.fetchMessages(leadId);
+});
+
+/// Job costs for a specific lead — fetched from Supabase.
+final jobCostsProvider =
+    FutureProvider.family<List<JobCost>, String>((ref, leadId) async {
+  return _api.fetchJobCosts(leadId);
 });
 
 /// Lead counts per filter category.
 final leadCountsProvider = Provider<Map<String, int>>((ref) {
-  final leads = ref.watch(leadsProvider).leads;
+  final leadsAsync = ref.watch(leadsProvider);
+  final leads = leadsAsync.valueOrNull ?? [];
+
   final counts = <String, int>{
     'all': leads.length,
     'missed': 0,

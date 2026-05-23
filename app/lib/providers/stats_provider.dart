@@ -1,13 +1,70 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../data/mock_data.dart';
 import '../models/lead.dart';
 import '../widgets/month_calendar.dart';
+import 'contractor_provider.dart';
 import 'leads_provider.dart';
 
-/// Dashboard stats derived from leads.
+// ---------------------------------------------------------------------------
+// Stats model
+// ---------------------------------------------------------------------------
+
+class DashboardStats {
+  final double recoveredRevenue;
+  final int leadsRecovered;
+  final int recoveryRate;
+  final String avgResponseTime;
+
+  const DashboardStats({
+    required this.recoveredRevenue,
+    required this.leadsRecovered,
+    required this.recoveryRate,
+    required this.avgResponseTime,
+  });
+}
+
+DashboardStats _computeStats(List<Lead> leads, double defaultJobValue) {
+  final completedLeads = leads
+      .where(
+          (l) => l.status == LeadStatus.completed || l.status == LeadStatus.followedUp)
+      .toList();
+  final totalRecoverable =
+      leads.where((l) => l.status != LeadStatus.noConsent).length;
+  final recoveredCount = leads
+      .where((l) =>
+          l.status == LeadStatus.booked ||
+          l.status == LeadStatus.completed ||
+          l.status == LeadStatus.followedUp)
+      .length;
+
+  final recoveredRevenue = completedLeads.fold<double>(
+    0,
+    (sum, l) => sum + (l.estimatedValue ?? defaultJobValue),
+  );
+  final recoveryRate = totalRecoverable > 0
+      ? ((recoveredCount / totalRecoverable) * 100).round()
+      : 0;
+
+  return DashboardStats(
+    recoveredRevenue: recoveredRevenue,
+    leadsRecovered: recoveredCount,
+    recoveryRate: recoveryRate,
+    avgResponseTime: '—', // TODO: compute from real message timestamps
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Providers
+// ---------------------------------------------------------------------------
+
+/// Dashboard stats derived from leads and contractor's default job value.
 final statsProvider = Provider<DashboardStats>((ref) {
-  final leads = ref.watch(leadsProvider).leads;
-  return computeStats(leads);
+  final leadsAsync = ref.watch(leadsProvider);
+  final contractorAsync = ref.watch(contractorProvider);
+
+  final leads = leadsAsync.valueOrNull ?? [];
+  final defaultJobValue = contractorAsync.valueOrNull?.defaultJobValue ?? 350;
+
+  return _computeStats(leads, defaultJobValue);
 });
 
 /// Display month for the calendar — defaults to current month.
@@ -18,7 +75,8 @@ final displayMonthProvider = StateProvider<DateTime>((ref) {
 
 /// Calendar day data — collected leads and booking revenue per day for the display month.
 final calendarDayDataProvider = Provider<Map<DateTime, CalendarDayData>>((ref) {
-  final leads = ref.watch(leadsProvider).leads;
+  final leadsAsync = ref.watch(leadsProvider);
+  final leads = leadsAsync.valueOrNull ?? [];
   final displayMonth = ref.watch(displayMonthProvider);
   final data = <DateTime, CalendarDayData>{};
 
@@ -88,13 +146,51 @@ bool _isCollectedLead(Lead lead) {
 
 /// Pipeline counts — derived from leads by status stage.
 final pipelineCountsProvider = Provider<Map<String, int>>((ref) {
-  final leads = ref.watch(leadsProvider).leads;
-  return computePipelineCounts(leads);
-});
+  final leadsAsync = ref.watch(leadsProvider);
+  final leads = leadsAsync.valueOrNull ?? [];
+
+  int missed = 0;
+  int contacted = 0;
+  int booked = 0;
+  int completed = 0;
+
+  for (final lead in leads) {
+    switch (lead.status) {
+      case LeadStatus.missed:
+      case LeadStatus.consentSent:
+      case LeadStatus.dnrAlert:
+      case LeadStatus.noConsent:
+        missed++;
+        break;
+      case LeadStatus.optedIn:
+      case LeadStatus.qualifying:
+      case LeadStatus.qualifyingIssue:
+      case LeadStatus.qualifyingUrgency:
+      case LeadStatus.qualifyingName:
+      case LeadStatus.bookingSent:
+        contacted++;
+        break;
+      case LeadStatus.booked:
+        booked++;
+        break;
+      case LeadStatus.completed:
+      case LeadStatus.followedUp:
+        completed++;
+        break;
+    }
+  }
+
+  return {
+    'missed': missed,
+    'contacted': contacted,
+    'booked': booked,
+    'completed': completed,
+  };
+})
+;
 
 /// Selected time range for the revenue chart.
 final timeRangeProvider = StateProvider<String>((ref) => '30d');
-
 
 /// Selected calendar date — defaults to today.
 final selectedCalendarDateProvider = StateProvider<DateTime>((ref) {
@@ -104,7 +200,8 @@ final selectedCalendarDateProvider = StateProvider<DateTime>((ref) {
 
 /// Calendar event counts — how many bookings per day in the visible range.
 final calendarEventCountsProvider = Provider<Map<DateTime, int>>((ref) {
-  final leads = ref.watch(leadsProvider).leads;
+  final leadsAsync = ref.watch(leadsProvider);
+  final leads = leadsAsync.valueOrNull ?? [];
   final counts = <DateTime, int>{};
 
   for (final lead in leads) {
@@ -124,7 +221,8 @@ final calendarEventCountsProvider = Provider<Map<DateTime, int>>((ref) {
 /// Scheduled leads for a specific date.
 final scheduledLeadsForDateProvider =
     Provider.family<List<Lead>, DateTime>((ref, date) {
-  final leads = ref.watch(leadsProvider).leads;
+  final leadsAsync = ref.watch(leadsProvider);
+  final leads = leadsAsync.valueOrNull ?? [];
   final dateOnly = DateTime(date.year, date.month, date.day);
 
   return leads
@@ -143,7 +241,9 @@ final scheduledLeadsForDateProvider =
 
 /// Leads needing urgent attention — missed + DNR + consent pending.
 final urgentLeadsProvider = Provider<List<Lead>>((ref) {
-  final leads = ref.watch(leadsProvider).leads;
+  final leadsAsync = ref.watch(leadsProvider);
+  final leads = leadsAsync.valueOrNull ?? [];
+
   return leads
       .where((l) =>
           l.status == LeadStatus.missed ||
@@ -159,15 +259,21 @@ final urgentLeadsProvider = Provider<List<Lead>>((ref) {
     });
 });
 
-/// SMS usage from mock contractor data.
+/// SMS usage from the contractor provider.
 final smsUsageProvider = Provider<({int used, int cap})>((ref) {
-  return (used: mockContractor.smsUsedThisMonth, cap: mockContractor.monthlySMSCap);
+  final contractorAsync = ref.watch(contractorProvider);
+  final contractor = contractorAsync.valueOrNull;
+  return (
+    used: contractor?.smsUsedThisMonth ?? 0,
+    cap: contractor?.monthlySMSCap ?? 50,
+  );
 });
 
 /// All leads associated with a calendar date — created on that date OR booked for that date.
 final leadsForCalendarDateProvider =
     Provider.family<List<Lead>, DateTime>((ref, date) {
-  final leads = ref.watch(leadsProvider).leads;
+  final leadsAsync = ref.watch(leadsProvider);
+  final leads = leadsAsync.valueOrNull ?? [];
   final dateOnly = DateTime(date.year, date.month, date.day);
 
   return leads.where((l) {

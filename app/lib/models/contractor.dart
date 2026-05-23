@@ -20,6 +20,7 @@ class Contractor {
   final String tier;
   final int monthlySMSCap;
   final int smsUsedThisMonth;
+  final String? fcmToken;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -45,6 +46,7 @@ class Contractor {
     this.tier = 'starter',
     this.monthlySMSCap = 50,
     this.smsUsedThisMonth = 0,
+    this.fcmToken,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -95,6 +97,7 @@ class Contractor {
       tier: json['tier'] as String? ?? 'starter',
       monthlySMSCap: json['monthly_sms_cap'] as int? ?? 50,
       smsUsedThisMonth: json['sms_used_this_month'] as int? ?? 0,
+      fcmToken: json['fcm_token'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );
@@ -123,6 +126,7 @@ class Contractor {
       'tier': tier,
       'monthly_sms_cap': monthlySMSCap,
       'sms_used_this_month': smsUsedThisMonth,
+      'fcm_token': fcmToken,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -150,6 +154,7 @@ class Contractor {
     String? tier,
     int? monthlySMSCap,
     int? smsUsedThisMonth,
+    String? fcmToken,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -175,6 +180,7 @@ class Contractor {
       tier: tier ?? this.tier,
       monthlySMSCap: monthlySMSCap ?? this.monthlySMSCap,
       smsUsedThisMonth: smsUsedThisMonth ?? this.smsUsedThisMonth,
+      fcmToken: fcmToken ?? this.fcmToken,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

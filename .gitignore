@@ -15,8 +15,6 @@ yarn-debug.log*
 yarn-error.log*
 coverage/
 .nyc_output/
-skills/
-docs/
 
 # ========================
 # Flutter / Dart

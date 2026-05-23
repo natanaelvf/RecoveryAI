@@ -54,6 +54,7 @@ export interface Contractor {
   monthly_sms_cap: number;
   sms_used_this_month: number;
   stripe_customer_id: string | null;
+  fcm_token: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -77,6 +78,7 @@ export interface Lead {
   estimated_value: number | null;
   satisfaction_score: number | null;
   satisfaction_feedback: string | null;
+  notes: string | null;
   called_during_after_hours: boolean;
   created_at: string;
   updated_at: string;

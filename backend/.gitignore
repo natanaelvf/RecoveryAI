@@ -1,6 +1,8 @@
 node_modules/
 dist/
 .env
+.env.*
+!.env.example
 src/**/*.js
 *.tsbuildinfo
 firebase-service-account.json

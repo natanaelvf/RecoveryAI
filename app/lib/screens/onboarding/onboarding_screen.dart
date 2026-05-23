@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/onboarding_provider.dart';
+import '../../providers/contractor_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/onboarding_stepper.dart';
 import 'step_business_info.dart';
@@ -54,12 +55,29 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   }
 
   Future<void> _handleComplete() async {
+    final contractorNotifier = ref.read(contractorProvider.notifier);
+    final onboardingNotifier = ref.read(onboardingProvider);
+
     setState(() => _showSuccess = true);
     _successController.forward();
-    await Future.delayed(const Duration(milliseconds: 1200));
-    if (mounted) {
-      ref.read(onboardingProvider).complete();
-      context.go('/dashboard');
+
+    final success = await onboardingNotifier.complete(contractorNotifier);
+
+    if (!mounted) return;
+
+    if (success) {
+      await Future.delayed(const Duration(milliseconds: 800));
+      if (mounted) context.go('/dashboard');
+    } else {
+      // Save failed — go back to the form.
+      setState(() => _showSuccess = false);
+      _successController.reset();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(onboardingNotifier.error ?? 'Failed to save'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -154,9 +172,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                         ],
                       ),
                       TextButton(
-                        onPressed: () {
-                          ref.read(onboardingProvider).complete();
-                          context.go('/dashboard');
+                        onPressed: () async {
+                          // Skip onboarding — still persist whatever is filled.
+                          final contractorNotifier = ref.read(contractorProvider.notifier);
+                          await ref.read(onboardingProvider).complete(contractorNotifier);
+                          if (context.mounted) context.go('/dashboard');
                         },
                         child: Text(
                           'Skip',

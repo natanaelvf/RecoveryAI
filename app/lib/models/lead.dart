@@ -173,6 +173,7 @@ class Lead {
   final int? satisfactionScore;
   final String? satisfactionFeedback;
   final bool calledDuringAfterHours;
+  final String? notes;
   final List<JobCost> costs;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -199,6 +200,7 @@ class Lead {
     this.satisfactionScore,
     this.satisfactionFeedback,
     this.calledDuringAfterHours = false,
+    this.notes,
     this.costs = const [],
     required this.createdAt,
     required this.updatedAt,
@@ -234,6 +236,7 @@ class Lead {
       satisfactionScore: json['satisfaction_score'] as int?,
       satisfactionFeedback: json['satisfaction_feedback'] as String?,
       calledDuringAfterHours: json['called_during_after_hours'] as bool? ?? false,
+      notes: json['notes'] as String?,
       costs: (json['costs'] as List<dynamic>?)
           ?.map((c) => JobCost.fromJson(c as Map<String, dynamic>))
           .toList() ?? [],
@@ -263,6 +266,7 @@ class Lead {
       'satisfaction_score': satisfactionScore,
       'satisfaction_feedback': satisfactionFeedback,
       'called_during_after_hours': calledDuringAfterHours,
+      'notes': notes,
       'costs': costs.map((c) => c.toJson()).toList(),
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
@@ -288,6 +292,7 @@ class Lead {
     int? satisfactionScore,
     String? satisfactionFeedback,
     bool? calledDuringAfterHours,
+    String? notes,
     List<JobCost>? costs,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -311,6 +316,7 @@ class Lead {
       satisfactionScore: satisfactionScore ?? this.satisfactionScore,
       satisfactionFeedback: satisfactionFeedback ?? this.satisfactionFeedback,
       calledDuringAfterHours: calledDuringAfterHours ?? this.calledDuringAfterHours,
+      notes: notes ?? this.notes,
       costs: costs ?? this.costs,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

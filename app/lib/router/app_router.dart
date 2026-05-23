@@ -7,7 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../config/supabase_config.dart';
-import '../providers/onboarding_provider.dart';
+import '../providers/contractor_provider.dart';
 import '../screens/login_screen.dart';
 import '../screens/dashboard_screen.dart';
 import '../screens/leads_screen.dart';
@@ -40,7 +40,7 @@ class _RouterRefreshNotifier extends ChangeNotifier {
     });
   }
 
-  /// Called by the onboarding provider listener.
+  /// Called by the contractor provider listener when onboarding completion changes.
   void updateOnboarding(bool isOnboardingComplete) {
     if (isOnboardingComplete != _wasOnboardingComplete) {
       _wasOnboardingComplete = isOnboardingComplete;
@@ -58,9 +58,9 @@ class _RouterRefreshNotifier extends ChangeNotifier {
 final _routerRefreshProvider = Provider<_RouterRefreshNotifier>((ref) {
   final notifier = _RouterRefreshNotifier();
 
-  // Listen to onboarding changes only (auth is handled via Supabase stream).
-  ref.listen(onboardingProvider, (_, onboarding) {
-    notifier.updateOnboarding(onboarding.isComplete);
+  // Listen to onboarding completion changes (derived from contractor data).
+  ref.listen(isOnboardingCompleteProvider, (_, isComplete) {
+    notifier.updateOnboarding(isComplete);
   });
 
   ref.onDispose(() => notifier.dispose());
@@ -85,9 +85,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Check Supabase session directly — the source of truth.
       final isLoggedIn = supabase.auth.currentSession != null;
 
-      // Read onboarding state from the provider.
+      // Read onboarding state from the contractor provider.
       final container = ProviderScope.containerOf(context);
-      final hasCompletedOnboarding = container.read(onboardingProvider).isComplete;
+      final hasCompletedOnboarding =
+          container.read(isOnboardingCompleteProvider);
 
       final isLoginRoute = state.matchedLocation == '/login';
       final isOnboardingRoute = state.matchedLocation == '/onboarding';

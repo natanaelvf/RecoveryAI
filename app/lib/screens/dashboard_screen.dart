@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:missed_lead_recovery/l10n/generated/app_localizations.dart';
 import 'package:go_router/go_router.dart';
-import '../data/mock_data.dart';
 import '../models/lead.dart';
+import '../providers/contractor_provider.dart';
 import '../providers/stats_provider.dart';
 import '../providers/leads_provider.dart';
 import '../theme/app_colors.dart';
@@ -62,7 +62,7 @@ class DashboardScreen extends ConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       Text(
-                        '$greeting, ${mockContractor.contactName.split(' ').first} 👋',
+                        '$greeting, ${ref.watch(contractorProvider).valueOrNull?.contactName.split(' ').first ?? 'there'} 👋',
                         style: Theme.of(context).textTheme.displaySmall,
                       ),
                       const SizedBox(height: 4),

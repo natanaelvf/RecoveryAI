@@ -24,7 +24,17 @@ class _AddLeadSheetState extends State<AddLeadSheet> {
   final _valueCtrl = TextEditingController();
   String _urgency = 'medium';
 
-  bool get _isValid => _phoneCtrl.text.trim().isNotEmpty;
+  /// Validates E.164-ish format: +, then 7–15 digits (spaces/dashes stripped).
+  bool get _isValidPhone {
+    final stripped = _phoneCtrl.text.trim().replaceAll(RegExp(r'[\s\-()]'), '');
+    return RegExp(r'^\+\d{7,15}$').hasMatch(stripped);
+  }
+
+  bool get _isValid => _isValidPhone;
+
+  /// Whether to show phone validation error (non-empty but invalid).
+  bool get _showPhoneError =>
+      _phoneCtrl.text.trim().isNotEmpty && !_isValidPhone;
 
   @override
   void dispose() {
@@ -84,9 +94,12 @@ class _AddLeadSheetState extends State<AddLeadSheet> {
               controller: _phoneCtrl,
               keyboardType: TextInputType.phone,
               onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: '+358 40 XXX XXXX',
-                prefixIcon: Icon(Icons.phone_outlined, size: 20),
+                prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                errorText: _showPhoneError
+                    ? 'Enter a valid phone number (e.g. +358401234567)'
+                    : null,
               ),
             ),
             const SizedBox(height: 16),

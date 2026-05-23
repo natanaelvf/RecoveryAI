@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:missed_lead_recovery/l10n/generated/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -23,7 +24,7 @@ class LeadDetailScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final colors = AppColors.of(context);
     final lead = ref.watch(leadByIdProvider(leadId));
-    final messages = ref.watch(messagesProvider(leadId));
+    final messagesAsync = ref.watch(messagesProvider(leadId));
 
     if (lead == null) {
       return Scaffold(
@@ -72,11 +73,21 @@ class LeadDetailScreen extends ConsumerWidget {
               if (canComplete)
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      ref.read(leadsProvider).markComplete(leadId);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(l10n.toastLeadCompleted)),
-                      );
+                    onPressed: () async {
+                      try {
+                        await ref.read(leadsProvider.notifier).markComplete(leadId);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(l10n.toastLeadCompleted)),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Failed: $e')),
+                          );
+                        }
+                      }
                     },
                     icon: const Icon(Icons.check_circle_outline, size: 18),
                     label: Text(l10n.leadDetailMarkComplete),
@@ -148,7 +159,20 @@ class LeadDetailScreen extends ConsumerWidget {
                   ),
                 ),
                 const Divider(height: 1),
-                if (messages.isEmpty)
+                if (messagesAsync is AsyncLoading)
+                  const Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (messagesAsync is AsyncError)
+                  Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Center(
+                      child: Text('Failed to load messages',
+                          style: Theme.of(context).textTheme.bodySmall),
+                    ),
+                  )
+                else if (messagesAsync.valueOrNull?.isEmpty ?? true)
                   Padding(
                     padding: const EdgeInsets.all(32),
                     child: Center(
@@ -165,7 +189,7 @@ class LeadDetailScreen extends ConsumerWidget {
                 else
                   Padding(
                     padding: const EdgeInsets.all(12),
-                    child: _ConversationThread(messages: messages),
+                    child: _ConversationThread(messages: messagesAsync.value!),
                   ),
               ],
             ),
@@ -286,6 +310,9 @@ class _InfoCard extends ConsumerWidget {
         content: TextField(
           controller: controller,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+          ],
           autofocus: true,
           decoration: InputDecoration(
             prefixText: '€ ',
@@ -304,14 +331,24 @@ class _InfoCard extends ConsumerWidget {
             child: Text('Cancel', style: TextStyle(color: colors.textSecondary)),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               final value = double.tryParse(controller.text);
               if (value != null && value >= 0) {
-                ref.read(leadsProvider).updateEstimatedValue(leadId, value);
                 Navigator.of(ctx).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Revenue updated')),
-                );
+                try {
+                  await ref.read(leadsProvider.notifier).updateEstimatedValue(leadId, value);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Revenue updated')),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed: $e')),
+                    );
+                  }
+                }
               }
             },
             child: const Text('Save'),
@@ -532,6 +569,9 @@ class _CostsCard extends ConsumerWidget {
             TextField(
               controller: amountController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+              ],
               decoration: InputDecoration(
                 labelText: 'Amount',
                 prefixText: '€ ',
@@ -552,15 +592,25 @@ class _CostsCard extends ConsumerWidget {
             child: Text('Cancel', style: TextStyle(color: colors.textSecondary)),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               final desc = descController.text.trim();
               final amount = double.tryParse(amountController.text);
               if (desc.isNotEmpty && amount != null && amount > 0) {
-                ref.read(leadsProvider).addCost(leadId, desc, amount);
                 Navigator.of(ctx).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Cost added')),
-                );
+                try {
+                  await ref.read(leadsProvider.notifier).addCost(leadId, desc, amount);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Cost added')),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed: $e')),
+                    );
+                  }
+                }
               }
             },
             child: const Text('Add'),

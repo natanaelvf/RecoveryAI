@@ -203,10 +203,12 @@ class AuthNotifier extends ChangeNotifier {
     } on AuthException catch (e) {
       _state = _state.copyWith(isLoading: false, errorMessage: e.message);
       notifyListeners();
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('Google sign-in error: $e');
+      debugPrint('Stack trace: $stackTrace');
       _state = _state.copyWith(
         isLoading: false,
-        errorMessage: 'Google sign-in failed. Please try again.',
+        errorMessage: 'Google sign-in failed: $e',
       );
       notifyListeners();
     }

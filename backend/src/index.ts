@@ -8,13 +8,9 @@ import { env } from './config/env';
 import twilioVoiceWebhook from './routes/webhooks/twilio-voice';
 import twilioSmsWebhook from './routes/webhooks/twilio-sms';
 import calendlyWebhook from './routes/webhooks/calendly';
-import leadsApi from './routes/api/leads';
-import statsApi from './routes/api/stats';
-import contractorApi from './routes/api/contractor';
 
 // --- Middleware imports ---
 import { twilioSignatureMiddleware } from './middleware/twilio-signature';
-import { authMiddleware } from './middleware/auth';
 
 // --- Cron job imports ---
 import { runDnrCheck } from './jobs/dnr-check';
@@ -38,7 +34,16 @@ app.use(
   })
 );
 
-app.use(express.json());
+// Parse JSON with raw body capture for webhook signature verification.
+// The verify callback stores the raw buffer on req.rawBody so that
+// Calendly signature verification uses the exact original payload.
+app.use(
+  express.json({
+    verify: (req: express.Request, _res, buf) => {
+      (req as express.Request & { rawBody?: string }).rawBody = buf.toString('utf-8');
+    },
+  })
+);
 app.use(express.urlencoded({ extended: true })); // Twilio sends form-encoded
 
 // --- Health check ---
@@ -51,11 +56,6 @@ app.get('/health', (_req, res) => {
 app.use('/webhooks/twilio-voice', twilioSignatureMiddleware, twilioVoiceWebhook);
 app.use('/webhooks/twilio-sms', twilioSignatureMiddleware, twilioSmsWebhook);
 app.use('/webhooks/calendly', calendlyWebhook);
-
-// --- API routes (auth required) ---
-app.use('/api/leads', authMiddleware, leadsApi);
-app.use('/api/stats', authMiddleware, statsApi);
-app.use('/api/contractor', authMiddleware, contractorApi);
 
 // --- Cron jobs ---
 // DNR check: every 15 minutes

@@ -51,20 +51,33 @@ class LeadsScreen extends ConsumerWidget {
                 String? description,
                 String urgency = 'medium',
                 double? estimatedValue,
-              }) {
-                ref.read(leadsProvider).addLead(
-                      phone: phone,
-                      name: name,
-                      description: description,
-                      urgency: urgency,
-                      estimatedValue: estimatedValue,
+              }) async {
+                try {
+                  await ref.read(leadsProvider.notifier).addLead(
+                        phone: phone,
+                        name: name,
+                        description: description,
+                        urgency: urgency,
+                        estimatedValue: estimatedValue,
+                      );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Lead added: $phone'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
                     );
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Lead added: $phone'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to add lead: $e'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                }
               },
             ),
           );
@@ -102,41 +115,75 @@ class LeadsScreen extends ConsumerWidget {
 
           // Leads list
           Expanded(
-            child: leads.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('📋', style: TextStyle(fontSize: 40)),
-                        const SizedBox(height: 12),
-                        Text(
-                          searchQuery.isNotEmpty || selectedFilter != 'all'
-                              ? l10n.leadsNoResults
-                              : l10n.leadsEmptyTitle,
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          l10n.leadsEmptyDesc,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: leads.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final lead = leads[index];
-                      return LeadCard(
-                        lead: lead,
-                        onTap: () => context.push('/leads/${lead.id}'),
-                      );
-                    },
-                  ),
+            child: _buildLeadsList(context, ref, leads, searchQuery, selectedFilter, l10n, colors),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLeadsList(BuildContext context, WidgetRef ref, List leads, String searchQuery, String selectedFilter, AppLocalizations l10n, AppColors colors) {
+    final leadsAsync = ref.watch(leadsProvider);
+
+    // Show loading only on initial load (not when Realtime updates come in).
+    if (leadsAsync is AsyncLoading && !leadsAsync.hasValue) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (leadsAsync is AsyncError && !leadsAsync.hasValue) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('⚠️', style: TextStyle(fontSize: 40)),
+            const SizedBox(height: 12),
+            Text('Failed to load leads', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: () => ref.read(leadsProvider.notifier).refresh(),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (leads.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('📋', style: TextStyle(fontSize: 40)),
+            const SizedBox(height: 12),
+            Text(
+              searchQuery.isNotEmpty || selectedFilter != 'all'
+                  ? l10n.leadsNoResults
+                  : l10n.leadsEmptyTitle,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              l10n.leadsEmptyDesc,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => ref.read(leadsProvider.notifier).refresh(),
+      child: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: leads.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (context, index) {
+          final lead = leads[index];
+          return LeadCard(
+            lead: lead,
+            onTap: () => context.push('/leads/${lead.id}'),
+          );
+        },
       ),
     );
   }

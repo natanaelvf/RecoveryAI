@@ -59,6 +59,7 @@ CREATE TABLE contractors (
     CHECK (tier IN ('starter', 'growth', 'pro')),
   monthly_sms_cap               int DEFAULT 50,
   sms_used_this_month           int DEFAULT 0,
+  fcm_token                     text,   -- Firebase Cloud Messaging device token
   stripe_customer_id            text,
   created_at                    timestamptz DEFAULT now(),
   updated_at                    timestamptz DEFAULT now()
@@ -93,6 +94,7 @@ CREATE TABLE leads (
   satisfaction_score        int
     CHECK (satisfaction_score IS NULL OR (satisfaction_score >= 1 AND satisfaction_score <= 5)),
   satisfaction_feedback     text,
+  notes                     text,   -- contractor-editable notes
   called_during_after_hours boolean DEFAULT false,
   created_at                timestamptz DEFAULT now(),
   updated_at                timestamptz DEFAULT now()

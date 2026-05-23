@@ -27,7 +27,11 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Send an SMS via Twilio with cap enforcement and retry logic.
+ * Send an SMS via Twilio with atomic cap enforcement and retry logic.
+ *
+ * Uses the `increment_sms_usage` Postgres RPC to atomically check the cap
+ * and increment the counter in a single operation, preventing race conditions.
+ *
  * Throws 'SMS_CAP_REACHED' if the contractor has exceeded their monthly limit.
  */
 export async function sendSms(
@@ -35,18 +39,25 @@ export async function sendSms(
   from: string,
   body: string
 ): Promise<string> {
-  // Look up contractor by Twilio number to check SMS cap
+  // Look up contractor by Twilio number to get their ID
   const { data: contractor } = await supabase
     .from('contractors')
-    .select('id, sms_used_this_month, monthly_sms_cap')
+    .select('id')
     .eq('twilio_phone_number', from)
     .single();
 
-  if (contractor && contractor.sms_used_this_month >= contractor.monthly_sms_cap) {
-    console.warn(
-      `[twilio] SMS cap reached for contractor ${contractor.id}: ${contractor.sms_used_this_month}/${contractor.monthly_sms_cap}`
-    );
-    throw new Error('SMS_CAP_REACHED');
+  if (contractor) {
+    // Atomically check cap and increment — returns -1 if cap reached
+    const { data: newCount, error: rpcError } = await supabase
+      .rpc('increment_sms_usage', { p_contractor_id: contractor.id });
+
+    if (rpcError) {
+      console.error(`[twilio] SMS cap check failed: ${rpcError.message}`);
+      // Proceed anyway rather than blocking SMS on a DB error
+    } else if (newCount === -1) {
+      console.warn(`[twilio] SMS cap reached for contractor ${contractor.id}`);
+      throw new Error('SMS_CAP_REACHED');
+    }
   }
 
   // Send with retry on transient errors
@@ -54,17 +65,6 @@ export async function sendSms(
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
       const message = await twilioClient.messages.create({ to, from, body });
-
-      // Increment SMS counter after successful send
-      if (contractor) {
-        await supabase
-          .from('contractors')
-          .update({
-            sms_used_this_month: contractor.sms_used_this_month + 1,
-          })
-          .eq('id', contractor.id);
-      }
-
       return message.sid;
     } catch (err) {
       lastError = err;
@@ -99,4 +99,3 @@ export async function lookupContractorByTwilioNumber(
 
   return data as Contractor;
 }
-

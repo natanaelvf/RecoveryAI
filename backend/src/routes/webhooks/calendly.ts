@@ -10,21 +10,55 @@ const router = Router();
 
 /**
  * Verify Calendly webhook signature.
+ *
+ * Calendly sends a header like:
+ *   Calendly-Webhook-Signature: t=timestamp,v1=signature
+ *
+ * The signature is an HMAC-SHA256 of "timestamp.payload" using the
+ * webhook signing key (NOT the PAT — the signing key is provided
+ * when you create the webhook subscription via the Calendly API).
  */
 function verifyCalendlySignature(
   payload: string,
-  signature: string,
+  signatureHeader: string,
   secret: string
 ): boolean {
-  // TODO: Confirm Calendly's exact signing scheme (HMAC-SHA256 is typical)
-  const expected = crypto
+  if (!signatureHeader) return false;
+
+  // Parse the t= and v1= components
+  const parts: Record<string, string> = {};
+  for (const part of signatureHeader.split(',')) {
+    const [key, value] = part.split('=', 2);
+    if (key && value) parts[key.trim()] = value.trim();
+  }
+
+  const timestamp = parts['t'];
+  const expectedSig = parts['v1'];
+  if (!timestamp || !expectedSig) return false;
+
+  // Reject if timestamp is too old (5-minute tolerance for replay protection)
+  const tolerance = 5 * 60 * 1000;
+  const age = Date.now() - parseInt(timestamp, 10) * 1000;
+  if (isNaN(age) || age > tolerance) {
+    console.warn(`[calendly] Webhook signature too old: ${age}ms`);
+    return false;
+  }
+
+  // Compute expected signature: HMAC-SHA256(timestamp.payload)
+  const signedPayload = `${timestamp}.${payload}`;
+  const computed = crypto
     .createHmac('sha256', secret)
-    .update(payload)
+    .update(signedPayload)
     .digest('hex');
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expected)
-  );
+
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(expectedSig),
+      Buffer.from(computed)
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -32,13 +66,10 @@ function verifyCalendlySignature(
  */
 router.post('/', async (req: Request, res: Response) => {
   try {
-    // Verify signature
-    // Fix #8: Use the raw body buffer for signature verification instead of
-    // re-serializing JSON (which may alter key order / whitespace).
-    const signature = req.headers['calendly-webhook-signature'] as string || '';
+    const signatureHeader = req.headers['calendly-webhook-signature'] as string || '';
     const rawBody = (req as Request & { rawBody?: string }).rawBody || JSON.stringify(req.body);
 
-    if (!verifyCalendlySignature(rawBody, signature, env.calendlyWebhookSecret)) {
+    if (!verifyCalendlySignature(rawBody, signatureHeader, env.calendlyWebhookSecret)) {
       res.status(401).json({ error: 'Invalid webhook signature' });
       return;
     }
@@ -103,33 +134,32 @@ router.post('/', async (req: Request, res: Response) => {
       .single();
 
     if (contractor && eventStartTime) {
-      // Send confirmation SMS
+      // Send confirmation SMS to the lead
       const formattedTime = new Date(eventStartTime).toLocaleString();
       const confirmMsg = `Your appointment with ${contractor.business_name} is confirmed for ${formattedTime}. We look forward to helping you!`;
-      await sendSms(lead.caller_phone, contractor.twilio_phone_number, confirmMsg);
+      const smsSid = await sendSms(lead.caller_phone, contractor.twilio_phone_number, confirmMsg);
 
-      // Send push notification to contractor
+      // Record the confirmation message
+      await supabase.from('messages').insert({
+        lead_id: lead.id,
+        direction: 'outbound',
+        body: confirmMsg,
+        twilio_message_sid: smsSid,
+        sent_at: new Date().toISOString(),
+      });
+
+      // Notify the contractor
       await sendPushNotification(
         contractor.id,
         'New Booking!',
-        `${lead.caller_phone} booked for ${formattedTime}`,
+        `${lead.caller_name || lead.caller_phone} booked for ${formattedTime}`,
         { leadId: lead.id }
       );
     }
 
-    // Schedule satisfaction follow-up task
-    if (eventStartTime) {
-      const followupTime = new Date(
-        new Date(eventStartTime).getTime() + 24 * 60 * 60 * 1000
-      ).toISOString();
-
-      await supabase.from('scheduled_tasks').insert({
-        lead_id: lead.id,
-        task_type: 'satisfaction_followup',
-        execute_at: followupTime,
-        executed: false,
-      });
-    }
+    // NOTE: Satisfaction follow-up is NOT scheduled here.
+    // It's scheduled when the contractor marks the job as completed
+    // (via the Flutter app's markLeadComplete).
 
     res.status(200).json({ ok: true });
   } catch (err) {

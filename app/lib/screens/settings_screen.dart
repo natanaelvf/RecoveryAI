@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:missed_lead_recovery/l10n/generated/app_localizations.dart';
 import '../providers/contractor_provider.dart';
 import '../providers/theme_provider.dart';
+import '../models/contractor.dart';
 import '../theme/app_colors.dart';
 import '../widgets/day_toggle_row.dart';
 import '../widgets/usage_bar.dart';
@@ -27,22 +28,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late List<int> _workingDays;
   late TimeOfDay _startTime;
   late TimeOfDay _endTime;
+  bool _initialized = false;
 
   @override
   void initState() {
     super.initState();
-    final c = ref.read(contractorProvider).contractor;
-    _businessNameController = TextEditingController(text: c.businessName);
-    _contactNameController = TextEditingController(text: c.contactName);
-    _contactEmailController = TextEditingController(text: c.contactEmail);
-    _contactPhoneController = TextEditingController(text: c.contactPhone);
-    _urgentThresholdController =
-        TextEditingController(text: c.urgencyThresholdUrgentMin.toString());
-    _normalThresholdController =
-        TextEditingController(text: c.urgencyThresholdNormalMin.toString());
-    _defaultValueController =
-        TextEditingController(text: c.defaultJobValue?.toInt().toString() ?? '350');
-    _calendlyController = TextEditingController(text: c.calendlyUrl ?? '');
+    // Controllers will be initialized when contractor data is available.
+    _businessNameController = TextEditingController();
+    _contactNameController = TextEditingController();
+    _contactEmailController = TextEditingController();
+    _contactPhoneController = TextEditingController();
+    _urgentThresholdController = TextEditingController();
+    _normalThresholdController = TextEditingController();
+    _defaultValueController = TextEditingController();
+    _calendlyController = TextEditingController();
+    _workingDays = [1, 2, 3, 4, 5];
+    _startTime = const TimeOfDay(hour: 8, minute: 0);
+    _endTime = const TimeOfDay(hour: 18, minute: 0);
+  }
+
+  void _initFromContractor(Contractor c) {
+    if (_initialized) return;
+    _initialized = true;
+    _businessNameController.text = c.businessName;
+    _contactNameController.text = c.contactName;
+    _contactEmailController.text = c.contactEmail;
+    _contactPhoneController.text = c.contactPhone;
+    _urgentThresholdController.text = c.urgencyThresholdUrgentMin.toString();
+    _normalThresholdController.text = c.urgencyThresholdNormalMin.toString();
+    _defaultValueController.text = c.defaultJobValue?.toInt().toString() ?? '350';
+    _calendlyController.text = c.calendlyUrl ?? '';
     _workingDays = List.from(c.workingDays);
 
     final startParts = c.workingHoursStart.split(':');
@@ -70,40 +85,63 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     super.dispose();
   }
 
-  void _save() {
-    ref.read(contractorProvider).updateSettings(
-          businessName: _businessNameController.text,
-          contactName: _contactNameController.text,
-          contactEmail: _contactEmailController.text,
-          contactPhone: _contactPhoneController.text,
-          workingDays: _workingDays,
-          workingHoursStart:
-              '${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}',
-          workingHoursEnd:
-              '${_endTime.hour.toString().padLeft(2, '0')}:${_endTime.minute.toString().padLeft(2, '0')}',
-          urgencyThresholdUrgentMin:
-              int.tryParse(_urgentThresholdController.text) ?? 60,
-          urgencyThresholdNormalMin:
-              int.tryParse(_normalThresholdController.text) ?? 1440,
-          defaultJobValue:
-              double.tryParse(_defaultValueController.text) ?? 350,
-          calendlyUrl: _calendlyController.text,
-        );
-
+  Future<void> _save() async {
     final l10n = AppLocalizations.of(context)!;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.toastSettingsSaved)),
-    );
+
+    try {
+      await ref.read(contractorProvider.notifier).updateSettings({
+        'business_name': _businessNameController.text,
+        'contact_name': _contactNameController.text,
+        'contact_email': _contactEmailController.text,
+        'contact_phone': _contactPhoneController.text,
+        'working_days': _workingDays,
+        'working_hours_start':
+            '${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}',
+        'working_hours_end':
+            '${_endTime.hour.toString().padLeft(2, '0')}:${_endTime.minute.toString().padLeft(2, '0')}',
+        'urgency_threshold_urgent_min':
+            int.tryParse(_urgentThresholdController.text) ?? 60,
+        'urgency_threshold_normal_min':
+            int.tryParse(_normalThresholdController.text) ?? 1440,
+        'default_job_value':
+            double.tryParse(_defaultValueController.text) ?? 350,
+        'calendly_url': _calendlyController.text,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.toastSettingsSaved)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save: $e')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final colors = AppColors.of(context);
-    final c = ref.watch(contractorProvider).contractor;
-    final smsPercent = c.smsUsagePercent;
-    final smsWarning = smsPercent > 0.8;
+    final contractorAsync = ref.watch(contractorProvider);
     final themePref = ref.watch(themePreferenceProvider);
+
+    return contractorAsync.when(
+      loading: () => Scaffold(
+        backgroundColor: colors.bgBase,
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => Scaffold(
+        backgroundColor: colors.bgBase,
+        body: Center(child: Text('Error loading settings: $e')),
+      ),
+      data: (c) {
+        _initFromContractor(c);
+        final smsPercent = c.smsUsagePercent;
+        final smsWarning = smsPercent > 0.8;
 
     final dayLabels = [
       l10n.dayMon, l10n.dayTue, l10n.dayWed,
@@ -296,6 +334,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 24),
         ],
       ),
+    );
+      },
     );
   }
 }

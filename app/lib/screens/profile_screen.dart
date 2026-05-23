@@ -15,10 +15,21 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     final colors = AppColors.of(context);
-    final c = ref.watch(contractorProvider).contractor;
+    final contractorAsync = ref.watch(contractorProvider);
     final themePref = ref.watch(themePreferenceProvider);
 
-    return Scaffold(
+    return contractorAsync.when(
+      loading: () => Scaffold(
+        backgroundColor: colors.bgBase,
+        appBar: AppBar(title: Text(l10n.profileTitle)),
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => Scaffold(
+        backgroundColor: colors.bgBase,
+        appBar: AppBar(title: Text(l10n.profileTitle)),
+        body: Center(child: Text('Error: $e')),
+      ),
+      data: (c) => Scaffold(
       backgroundColor: colors.bgBase,
       appBar: AppBar(
         title: Text(l10n.profileTitle),
@@ -220,6 +231,7 @@ class ProfileScreen extends ConsumerWidget {
           const SizedBox(height: 32),
         ],
       ),
+    ),
     );
   }
 }

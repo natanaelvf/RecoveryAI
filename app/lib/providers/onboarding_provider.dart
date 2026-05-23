@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'contractor_provider.dart';
 
 /// Onboarding state — tracks wizard progress and collected data.
+/// On completion, persists all collected data to the contractors table
+/// via the ContractorNotifier.
 class OnboardingNotifier extends ChangeNotifier {
   int _currentStep = 0;
-  bool _isComplete = false;
+  bool _isSaving = false;
+  String? _error;
 
   // Step 1: Business Info
   String businessName = '';
@@ -29,11 +33,16 @@ class OnboardingNotifier extends ChangeNotifier {
   String calendlyUrl = '';
 
   int get currentStep => _currentStep;
-  bool get isComplete => _isComplete;
+  bool get isSaving => _isSaving;
+  String? get error => _error;
   int get totalSteps => 4;
 
+  /// Whether onboarding is complete is now derived from the contractor row.
+  /// This getter is kept for backward compatibility with the router,
+  /// but the real source of truth is `isOnboardingCompleteProvider`.
+  bool get isComplete => false; // Always false here; router checks provider.
+
   /// Can advance from current step.
-  /// Always allows advancing — fields are optional during onboarding.
   bool get canAdvance => true;
 
   void goToStep(int step) {
@@ -57,14 +66,52 @@ class OnboardingNotifier extends ChangeNotifier {
     }
   }
 
-  void complete() {
-    _isComplete = true;
+  /// Save onboarding data to Supabase and mark as complete.
+  /// Called by the onboarding screen's "Complete" button.
+  /// The [contractorNotifier] is passed in from the widget (via ref).
+  Future<bool> complete(ContractorNotifier contractorNotifier) async {
+    _isSaving = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await contractorNotifier.saveOnboarding(
+        businessName: businessName,
+        contactName: contactName,
+        contactEmail: contactEmail,
+        contactPhone: contactPhone,
+        twilioPhoneNumber: phoneNumber,
+        numberSetupType: numberSetupType,
+        tradeType: tradeType,
+        calendlyUrl: calendlyUrl.isNotEmpty ? calendlyUrl : null,
+        workingDays: workingDays,
+        workingHoursStart: workingHoursStart,
+        workingHoursEnd: workingHoursEnd,
+        urgencyThresholdUrgentMin: urgencyThresholdUrgentMin,
+        urgencyThresholdNormalMin: urgencyThresholdNormalMin,
+        defaultJobValue: defaultJobValue,
+      );
+
+      _isSaving = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isSaving = false;
+      _error = 'Failed to save: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  void clearError() {
+    _error = null;
     notifyListeners();
   }
 
   void reset() {
     _currentStep = 0;
-    _isComplete = false;
+    _isSaving = false;
+    _error = null;
     businessName = '';
     tradeType = null;
     contactName = '';
