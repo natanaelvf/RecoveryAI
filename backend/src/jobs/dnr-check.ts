@@ -66,12 +66,12 @@ export async function runDnrCheck(): Promise<void> {
           })
           .eq('id', lead.id);
 
-        // Send push notification
+        // Send push notification (urgent leads get the loud alarm channel)
         await sendPushNotification(
           contractor.id,
-          'Lead Not Responding',
+          isUrgent ? '🚨 Urgent Lead Not Responding' : 'Lead Not Responding',
           `${lead.caller_phone} hasn't responded after ${thresholdMin} min (urgency: ${lead.urgency})`,
-          { leadId: lead.id }
+          { leadId: lead.id, ...(isUrgent ? { priority: 'high' } : {}) }
         );
 
         console.log(`[cron] DNR alert sent for lead ${lead.id} (${lead.urgency}, threshold: ${thresholdMin}min)`);

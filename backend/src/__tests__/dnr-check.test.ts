@@ -91,9 +91,9 @@ describe('DNR Check Job', () => {
 
     expect(mockSendPushNotification).toHaveBeenCalledWith(
       'contractor-001',
-      'Lead Not Responding',
+      '🚨 Urgent Lead Not Responding',
       expect.stringContaining('60 min'),
-      expect.objectContaining({ leadId: 'lead-urgent' })
+      expect.objectContaining({ leadId: 'lead-urgent', priority: 'high' })
     );
   });
 
@@ -154,6 +154,10 @@ describe('DNR Check Job', () => {
       expect.stringContaining('1440 min'),
       expect.objectContaining({ leadId: 'lead-overdue' })
     );
+
+    // Normal leads should NOT have priority: 'high'
+    const callData = mockSendPushNotification.mock.calls[0][3];
+    expect(callData.priority).toBeUndefined();
   });
 
   it('should classify emergency urgency as urgent threshold', async () => {

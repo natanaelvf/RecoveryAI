@@ -124,9 +124,16 @@ class NotificationService {
   }
 
   void _handleForegroundMessage(RemoteMessage message) {
-    debugPrint('[fcm] Foreground message: ${message.notification?.title}');
-    // The notification will show automatically on Android.
-    // For custom handling (e.g., in-app snackbar), add logic here.
+    final isUrgent = message.data['priority'] == 'high';
+    debugPrint('[fcm] Foreground message: ${message.notification?.title} (urgent=$isUrgent)');
+
+    if (isUrgent) {
+      // Urgent notifications: Android will use the 'urgent_leads' channel
+      // which has alarm-volume sound and bypasses DND.
+      // The notification banner will show automatically with the loud sound.
+      debugPrint('[fcm] 🚨 URGENT notification — alarm channel will ring loudly');
+    }
+    // All notifications show automatically on Android via the FCM channel config.
   }
 
   void _handleMessageTap(RemoteMessage message) {

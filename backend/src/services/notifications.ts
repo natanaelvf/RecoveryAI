@@ -66,19 +66,31 @@ export async function sendPushNotification(
   }
 
   try {
+    // Determine if this is an urgent/emergency notification
+    const isUrgent = data?.priority === 'high';
+
     await admin.messaging().send({
       token: fcmToken,
       notification: { title, body },
       data: data || {},
       android: {
         priority: 'high',
-        notification: {
-          channelId: 'leads',
-          sound: 'default',
-        },
+        notification: isUrgent
+          ? {
+              // Urgent channel: louder alarm-style sound, bypasses DND
+              channelId: 'urgent_leads',
+              sound: 'urgent_alarm',
+              defaultVibrateTimings: false,
+              vibrateTimingsMillis: ['0', '500', '200', '500', '200', '500', '200', '500'],
+              notificationCount: 1,
+            }
+          : {
+              channelId: 'leads',
+              sound: 'default',
+            },
       },
     });
-    console.log(`[fcm] Push sent to contractor ${contractorId}: "${title}"`);
+    console.log(`[fcm] Push sent to contractor ${contractorId}: "${title}" (urgent=${isUrgent})`);
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
 
