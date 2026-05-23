@@ -8,9 +8,11 @@ import { env } from './config/env';
 import twilioVoiceWebhook from './routes/webhooks/twilio-voice';
 import twilioSmsWebhook from './routes/webhooks/twilio-sms';
 import calendlyWebhook from './routes/webhooks/calendly';
+import deviceTokenRoute from './routes/api/device-token';
 
 // --- Middleware imports ---
 import { twilioSignatureMiddleware } from './middleware/twilio-signature';
+import { authMiddleware } from './middleware/auth';
 
 // --- Cron job imports ---
 import { runDnrCheck } from './jobs/dnr-check';
@@ -50,6 +52,9 @@ app.use(express.urlencoded({ extended: true })); // Twilio sends form-encoded
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// --- API routes (authenticated) ---
+app.use('/api', authMiddleware, deviceTokenRoute);
 
 // --- Webhook routes (validated by signature) ---
 // Fix #7: Apply Twilio signature validation to Twilio webhook routes

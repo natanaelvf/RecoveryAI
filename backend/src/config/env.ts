@@ -17,6 +17,19 @@ function required(key: string): string {
   return value;
 }
 
+/**
+ * Optional env var — logs a warning if missing and returns the fallback.
+ * Use for services that can degrade gracefully (FCM, Calendly).
+ */
+function optional(key: string, fallback: string, warningMsg: string): string {
+  const value = process.env[key];
+  if (!value) {
+    console.warn(`[env] ${warningMsg}`);
+    return fallback;
+  }
+  return value;
+}
+
 export const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT || '3000', 10),
@@ -26,8 +39,19 @@ export const env = {
   twilioAccountSid: required('TWILIO_ACCOUNT_SID'),
   twilioAuthToken: required('TWILIO_AUTH_TOKEN'),
   twilioPhoneNumber: required('TWILIO_PHONE_NUMBER'),
-  calendlyWebhookSecret: required('CALENDLY_WEBHOOK_SECRET'),
-  firebaseServiceAccountPath: required('FIREBASE_SERVICE_ACCOUNT_PATH'),
+  // Optional: Calendly webhook signature verification is disabled if not set
+  calendlyWebhookSecret: optional(
+    'CALENDLY_WEBHOOK_SECRET',
+    '',
+    'CALENDLY_WEBHOOK_SECRET not set — Calendly webhook signature verification is DISABLED'
+  ),
+  // Optional: Push notifications are disabled if Firebase service account is not set
+  // TODO: Test with frontend integration once Firebase project is created
+  firebaseServiceAccountPath: optional(
+    'FIREBASE_SERVICE_ACCOUNT_PATH',
+    '',
+    'FIREBASE_SERVICE_ACCOUNT_PATH not set — push notifications are DISABLED'
+  ),
   googleWebClientId: process.env.GOOGLE_WEB_CLIENT_ID || '',
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
 } as const;

@@ -11,7 +11,7 @@ import { supabase } from '../config/supabase';
 let firebaseInitialized = false;
 
 try {
-  if (!admin.apps.length) {
+  if (!admin.apps.length && env.firebaseServiceAccountPath) {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const serviceAccount = require(env.firebaseServiceAccountPath);
     admin.initializeApp({
@@ -19,7 +19,7 @@ try {
     });
     firebaseInitialized = true;
     console.log('[fcm] Firebase Admin SDK initialized');
-  } else {
+  } else if (admin.apps.length) {
     firebaseInitialized = true;
   }
 } catch (err) {

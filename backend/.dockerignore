@@ -1,0 +1,11 @@
+node_modules
+npm-debug.log
+dist
+.env
+.env.*
+!.env.example
+src/**/*.test.ts
+src/__tests__
+.git
+.gitignore
+README.md

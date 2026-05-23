@@ -3,7 +3,6 @@
 export enum LeadStatus {
   Missed = 'missed',
   ConsentSent = 'consent_sent',
-  OptedIn = 'opted_in',
   Qualifying = 'qualifying',
   QualifyingIssue = 'qualifying_issue',
   QualifyingUrgency = 'qualifying_urgency',

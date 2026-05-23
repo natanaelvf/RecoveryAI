@@ -69,9 +69,14 @@ router.post('/', async (req: Request, res: Response) => {
     const signatureHeader = req.headers['calendly-webhook-signature'] as string || '';
     const rawBody = (req as Request & { rawBody?: string }).rawBody || JSON.stringify(req.body);
 
-    if (!verifyCalendlySignature(rawBody, signatureHeader, env.calendlyWebhookSecret)) {
-      res.status(401).json({ error: 'Invalid webhook signature' });
-      return;
+    // Skip signature verification if webhook secret is not configured
+    if (env.calendlyWebhookSecret) {
+      if (!verifyCalendlySignature(rawBody, signatureHeader, env.calendlyWebhookSecret)) {
+        res.status(401).json({ error: 'Invalid webhook signature' });
+        return;
+      }
+    } else {
+      console.warn('[calendly] Webhook signature verification SKIPPED — CALENDLY_WEBHOOK_SECRET not set');
     }
 
     const event = req.body;
@@ -135,7 +140,12 @@ router.post('/', async (req: Request, res: Response) => {
 
     if (contractor && eventStartTime) {
       // Send confirmation SMS to the lead
-      const formattedTime = new Date(eventStartTime).toLocaleString();
+      // Format booking time in the contractor's timezone with Finnish locale
+      const formattedTime = new Date(eventStartTime).toLocaleString('fi-FI', {
+        timeZone: contractor.timezone || 'Europe/Helsinki',
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      });
       const confirmMsg = `Your appointment with ${contractor.business_name} is confirmed for ${formattedTime}. We look forward to helping you!`;
       const smsSid = await sendSms(lead.caller_phone, contractor.twilio_phone_number, confirmMsg);
 

@@ -142,7 +142,7 @@ class ApiService {
   // ── Leads ────────────────────────────────────────────
 
   /// Fetch leads for the current contractor, with optional status filter.
-  /// Sorted by created_at DESC. Supports pagination.
+  /// Sorted by created_at DESC. Supports pagination with accurate total count.
   Future<PaginatedLeads> fetchLeads({
     String? status,
     int page = 1,
@@ -153,6 +153,7 @@ class ApiService {
 
     final offset = (page - 1) * limit;
 
+    // Build the data query
     var query = _client
         .from('leads')
         .select()
@@ -170,7 +171,20 @@ class ApiService {
         .map((row) => Lead.fromJson(row as Map<String, dynamic>))
         .toList();
 
-    return PaginatedLeads(leads: leads, total: leads.length);
+    // Build a separate count query for accurate total
+    var countQuery = _client
+        .from('leads')
+        .select()
+        .eq('contractor_id', id);
+
+    if (status != null && status.isNotEmpty) {
+      countQuery = countQuery.eq('status', status);
+    }
+
+    final countResponse = await countQuery;
+    final total = (countResponse as List).length;
+
+    return PaginatedLeads(leads: leads, total: total);
   }
 
   /// Fetch all leads (no pagination) for derived computations (stats, calendar).

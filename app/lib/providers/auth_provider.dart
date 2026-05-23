@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/supabase_config.dart';
+import '../services/notification_service.dart';
 
 // ---------------------------------------------------------------------------
 // Auth state model
@@ -80,6 +81,9 @@ class AuthNotifier extends ChangeNotifier {
           clearError: true,
         );
         notifyListeners();
+
+        // Register FCM token after successful auth
+        NotificationService().registerToken();
       } else if (event == AuthChangeEvent.signedOut) {
         _state = const AuthState();
         notifyListeners();
@@ -243,6 +247,8 @@ class AuthNotifier extends ChangeNotifier {
   // ---- Sign out ------------------------------------------------------------
 
   Future<void> signOut() async {
+    // Clear FCM token before signing out
+    await NotificationService().clearToken();
     await supabase.auth.signOut();
     _state = const AuthState();
     notifyListeners();
