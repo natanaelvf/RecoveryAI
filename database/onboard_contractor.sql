@@ -32,7 +32,7 @@ DECLARE
   v_timezone         text    := 'Europe/Helsinki';
   v_tier             text    := 'starter';
   v_sms_cap          int     := 50;
-  v_locale           text    := 'fi';               -- 'fi' for Finnish, 'en' for English
+  v_locale           text    := 'fi';               -- 'fi' for Finnish, 'en' for English, 'pt' for Portuguese
 BEGIN
   INSERT INTO contractors (
     id,

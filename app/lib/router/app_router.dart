@@ -6,10 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
-/// Global navigator key — used by NotificationService for deep linking
-/// from push notification taps (no BuildContext needed).
-final rootNavigatorKey = GlobalKey<NavigatorState>();
-
 import '../config/supabase_config.dart';
 import '../providers/contractor_provider.dart';
 import '../screens/login_screen.dart';
@@ -20,6 +16,10 @@ import '../screens/settings_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 import '../widgets/bottom_nav_shell.dart';
+
+/// Global navigator key — used by NotificationService for deep linking
+/// from push notification taps (no BuildContext needed).
+final rootNavigatorKey = GlobalKey<NavigatorState>();
 
 /// Bridges the Supabase auth state stream + onboarding completion
 /// into a single [ChangeNotifier] that GoRouter can listen to.
