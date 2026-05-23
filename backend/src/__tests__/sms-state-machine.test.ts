@@ -78,6 +78,7 @@ function makeContractor(overrides: Partial<Contractor> = {}): Contractor {
     after_hours_ring: false,
     timezone: 'Europe/Helsinki',
     tier: 'starter',
+    locale: 'en',
     monthly_sms_cap: 50,
     sms_used_this_month: 0,
     stripe_customer_id: null,
@@ -258,6 +259,23 @@ describe('SMS State Machine', () => {
       expect(mockSendSms).toHaveBeenCalled();
       const smsBody = mockSendSms.mock.calls[0][2] as string;
       expect(smsBody).toContain('How urgent');
+    });
+
+    it('should send Finnish templates when locale is fi', async () => {
+      const lead = makeLead({ status: LeadStatus.QualifyingIssue });
+      const contractor = makeContractor({ locale: 'fi' });
+
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === 'leads') return mockChain(lead);
+        if (table === 'messages') return mockChain();
+        return mockChain();
+      });
+
+      await handleInboundSms(lead, 'Vuotava putki', contractor);
+
+      expect(mockSendSms).toHaveBeenCalled();
+      const smsBody = mockSendSms.mock.calls[0][2] as string;
+      expect(smsBody).toContain('kiireellinen');
     });
   });
 

@@ -1,7 +1,10 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../router/app_router.dart';
 
 /// Handles FCM token registration and push notification display.
 class NotificationService {
@@ -131,8 +134,14 @@ class NotificationService {
     // Navigate to the lead detail screen if leadId is in the payload.
     final leadId = message.data['leadId'];
     if (leadId != null) {
-      debugPrint('[fcm] Should navigate to lead: $leadId');
-      // TODO: Use a global navigator key or GoRouter to navigate
+      debugPrint('[fcm] Navigating to lead: $leadId');
+      // Use the global navigator key to push without needing a BuildContext.
+      final context = rootNavigatorKey.currentContext;
+      if (context != null) {
+        GoRouter.of(context).push('/leads/$leadId');
+      } else {
+        debugPrint('[fcm] No navigator context available for deep link');
+      }
     }
   }
 }

@@ -18,10 +18,13 @@ import { dashboardView } from './views/dashboard.js';
 import { leadsView } from './views/leads.js';
 import { leadDetailView } from './views/lead-detail.js';
 import { settingsView } from './views/settings.js';
+import { privacyView } from './views/privacy.js';
 
 // ── Register routes ─────────────────────────────────────
 
+// Public routes (no auth required)
 route('/login', () => loginView());
+route('/privacy', () => privacyView());
 
 route('/dashboard', () => {
   if (!isAuthenticated()) { navigate('/login'); return loginView(); }

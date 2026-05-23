@@ -2,9 +2,10 @@ import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import { env } from '../../config/env';
 import { supabase } from '../../config/supabase';
-import { LeadStatus } from '../../types';
+import { LeadStatus, Locale } from '../../types';
 import { sendSms } from '../../services/twilio';
 import { sendPushNotification } from '../../services/notifications';
+import { getSmsTemplates } from '../../services/sms-state-machine';
 
 const router = Router();
 
@@ -146,7 +147,8 @@ router.post('/', async (req: Request, res: Response) => {
         dateStyle: 'medium',
         timeStyle: 'short',
       });
-      const confirmMsg = `Your appointment with ${contractor.business_name} is confirmed for ${formattedTime}. We look forward to helping you!`;
+      const T = getSmsTemplates((contractor.locale as Locale) ?? 'fi');
+      const confirmMsg = T.bookingConfirmation(contractor.business_name, formattedTime);
       const smsSid = await sendSms(lead.caller_phone, contractor.twilio_phone_number, confirmMsg);
 
       // Record the confirmation message

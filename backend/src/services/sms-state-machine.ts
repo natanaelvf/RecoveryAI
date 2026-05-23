@@ -1,15 +1,27 @@
 import { supabase } from '../config/supabase';
-import { Lead, LeadStatus, Contractor } from '../types';
+import { Lead, LeadStatus, Contractor, Locale } from '../types';
 import { sendSms } from './twilio';
 import { sendPushNotification } from './notifications';
 
-// --- SMS Templates (English drafts — TODO: translate to Finnish) ---
+// --- SMS Templates (bilingual: Finnish + English) ---
+// Finnish translations should be reviewed by a native speaker before launch.
 
-const TEMPLATES = {
-  consentRequest: (businessName: string) =>
+type TemplateSet = {
+  consentRequest: (businessName: string) => string;
+  askIssue: (businessName: string) => string;
+  askUrgency: () => string;
+  askName: () => string;
+  bookingLink: (businessName: string, calendlyUrl: string) => string;
+  bookingConfirmation: (businessName: string, bookingTime: string) => string;
+  satisfactionFollowup: (businessName: string) => string;
+  noConsent: () => string;
+};
+
+const TEMPLATES_EN: TemplateSet = {
+  consentRequest: (businessName) =>
     `Hi! You just called ${businessName} but we couldn't answer. We'd like to help you via text. Reply YES to continue or STOP to opt out. Msg & data rates may apply.`,
 
-  askIssue: (businessName: string) =>
+  askIssue: (businessName) =>
     `Great, thanks for opting in! Can you briefly describe the issue you need help with? (e.g. "leaking pipe", "broken AC")`,
 
   askUrgency: () =>
@@ -18,20 +30,55 @@ const TEMPLATES = {
   askName: () =>
     `Thanks! What's your name so we can address you properly?`,
 
-  bookingLink: (businessName: string, calendlyUrl: string) =>
+  bookingLink: (businessName, calendlyUrl) =>
     `Thanks! Here's a link to book a time with ${businessName}: ${calendlyUrl}\nWe'll confirm once it's booked!`,
 
-  bookingConfirmation: (businessName: string, bookingTime: string) =>
+  bookingConfirmation: (businessName, bookingTime) =>
     `Your appointment with ${businessName} is confirmed for ${bookingTime}. We look forward to helping you!`,
 
-  satisfactionFollowup: (businessName: string) =>
+  satisfactionFollowup: (businessName) =>
     `Hi! How was your experience with ${businessName}? Reply with a number 1-5 (1=poor, 5=excellent) and any feedback you'd like to share.`,
 
   noConsent: () =>
     `No problem! We won't text you again. If you need help in the future, give us a call.`,
+};
 
-  // TODO: Add Finnish translations
-} as const;
+const TEMPLATES_FI: TemplateSet = {
+  consentRequest: (businessName) =>
+    `Hei! Yritit juuri soittaa yritykseen ${businessName}, mutta emme päässeet vastaamaan. Haluaisimme auttaa sinua tekstiviestillä. Vastaa KYLLÄ jatkaaksesi tai EI lopettaaksesi. Tietosuojaseloste: https://recoveryai.fi/privacy`,
+
+  askIssue: (_businessName) =>
+    `Kiitos! Voitko lyhyesti kuvata ongelman, johon tarvitset apua? (esim. "vuotava putki", "rikki mennyt ilmastointi")`,
+
+  askUrgency: () =>
+    `Kuinka kiireellinen asia on?\n1 - Ei kiire, voi odottaa muutaman päivän\n2 - Pian, 24-48h sisällä\n3 - Kiireellinen, tarvitsen apua tänään\n4 - Hätätilanne, tarvitsen apua nyt`,
+
+  askName: () =>
+    `Kiitos! Mikä on nimesi, jotta voimme puhutella sinua oikein?`,
+
+  bookingLink: (businessName, calendlyUrl) =>
+    `Kiitos! Tässä linkki ajanvaraukseen yrityksen ${businessName} kanssa: ${calendlyUrl}\nVahvistamme kun varaus on tehty!`,
+
+  bookingConfirmation: (businessName, bookingTime) =>
+    `Ajanvarauksesi yrityksen ${businessName} kanssa on vahvistettu ajankohtaan ${bookingTime}. Odotamme innolla palvelemistasi!`,
+
+  satisfactionFollowup: (businessName) =>
+    `Hei! Miten kokemuksesi yrityksen ${businessName} kanssa sujui? Vastaa numerolla 1-5 (1=huono, 5=erinomainen) ja kerro vapaasti palautetta.`,
+
+  noConsent: () =>
+    `Ei hätää! Emme lähetä sinulle enää viestejä. Jos tarvitset apua tulevaisuudessa, soita meille.`,
+};
+
+/**
+ * Get the correct template set based on contractor locale.
+ * Exported as getSmsTemplates for use by cron jobs and webhooks.
+ */
+export function getSmsTemplates(locale: Locale): TemplateSet {
+  return locale === 'fi' ? TEMPLATES_FI : TEMPLATES_EN;
+}
+
+// Internal alias for use within this module.
+const getTemplates = getSmsTemplates;
 
 /**
  * Record a message in the messages table.
@@ -131,6 +178,7 @@ export async function handleInboundSms(
 ): Promise<void> {
   const body = messageBody.trim();
   const fromNumber = contractor.twilio_phone_number;
+  const T = getTemplates(contractor.locale ?? 'fi');
 
   // Re-fetch lead to get latest status (fix #1: race condition prevention)
   const lead = await refreshLead(leadInput.id);
@@ -151,15 +199,15 @@ export async function handleInboundSms(
           consent_given: true,
           consent_given_at: new Date().toISOString(),
         });
-        const msg = TEMPLATES.askIssue(contractor.business_name);
+        const msg = T.askIssue(contractor.business_name);
         await sendAndRecord(lead, fromNumber, msg);
       } else if (upper === 'STOP' || upper === 'EI') {
         await updateLeadStatus(lead.id, LeadStatus.NoConsent);
-        const msg = TEMPLATES.noConsent();
+        const msg = T.noConsent();
         await sendAndRecord(lead, fromNumber, msg);
       } else {
         // Unrecognized reply — resend consent prompt
-        const msg = TEMPLATES.consentRequest(contractor.business_name);
+        const msg = T.consentRequest(contractor.business_name);
         await sendAndRecord(lead, fromNumber, msg);
       }
       break;
@@ -178,7 +226,7 @@ export async function handleInboundSms(
       await updateLeadStatus(lead.id, LeadStatus.QualifyingUrgency);
 
       // Ask urgency
-      const msg = TEMPLATES.askUrgency();
+      const msg = T.askUrgency();
       await sendAndRecord(lead, fromNumber, msg);
       break;
     }
@@ -205,11 +253,11 @@ export async function handleInboundSms(
         // Advance to name collection (fix #22)
         await updateLeadStatus(lead.id, LeadStatus.QualifyingName);
 
-        const msg = TEMPLATES.askName();
+        const msg = T.askName();
         await sendAndRecord(lead, fromNumber, msg);
       } else {
         // Unrecognized — re-ask urgency
-        const msg = TEMPLATES.askUrgency();
+        const msg = T.askUrgency();
         await sendAndRecord(lead, fromNumber, msg);
       }
       break;
@@ -224,7 +272,7 @@ export async function handleInboundSms(
         .eq('id', lead.id);
 
       // Send booking link
-      const msg = TEMPLATES.bookingLink(contractor.business_name, contractor.calendly_url);
+      const msg = T.bookingLink(contractor.business_name, contractor.calendly_url);
       await sendAndRecord(lead, fromNumber, msg);
       await updateLeadStatus(lead.id, LeadStatus.BookingSent);
       break;
@@ -233,7 +281,7 @@ export async function handleInboundSms(
     // --- Booking sent: waiting for Calendly webhook, but user might reply ---
     case LeadStatus.BookingSent: {
       // Re-send the booking link if they reply while waiting
-      const msg = TEMPLATES.bookingLink(contractor.business_name, contractor.calendly_url);
+      const msg = T.bookingLink(contractor.business_name, contractor.calendly_url);
       await sendAndRecord(lead, fromNumber, msg);
       break;
     }
@@ -268,7 +316,7 @@ export async function handleInboundSms(
         }
       } else {
         // Re-ask
-        const msg = TEMPLATES.satisfactionFollowup(contractor.business_name);
+        const msg = T.satisfactionFollowup(contractor.business_name);
         await sendAndRecord(lead, fromNumber, msg);
       }
       break;
@@ -290,8 +338,9 @@ export async function initiateConsentSms(
   lead: Lead,
   contractor: Contractor
 ): Promise<void> {
+  const T = getTemplates(contractor.locale ?? 'fi');
   const sent = await sendAndRecord(lead, contractor.twilio_phone_number,
-    TEMPLATES.consentRequest(contractor.business_name));
+    T.consentRequest(contractor.business_name));
 
   if (sent) {
     await updateLeadStatus(lead.id, LeadStatus.ConsentSent);

@@ -25,6 +25,7 @@ export enum Urgency {
 
 export type NumberSetupType = 'forwarding' | 'new_number';
 export type Tier = 'starter' | 'growth' | 'pro';
+export type Locale = 'fi' | 'en';
 export type MessageDirection = 'inbound' | 'outbound';
 export type ScheduledTaskType = 'dnr_check' | 'satisfaction_followup' | 'reminder' | 'consent_timeout';
 
@@ -50,6 +51,7 @@ export interface Contractor {
   after_hours_ring: boolean;
   timezone: string;
   tier: Tier;
+  locale: Locale;
   monthly_sms_cap: number;
   sms_used_this_month: number;
   stripe_customer_id: string | null;

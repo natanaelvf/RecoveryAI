@@ -1,6 +1,7 @@
 import { supabase } from '../config/supabase';
-import { LeadStatus } from '../types';
+import { LeadStatus, Locale } from '../types';
 import { sendSms } from '../services/twilio';
+import { getSmsTemplates } from '../services/sms-state-machine';
 
 /**
  * Satisfaction follow-up job.
@@ -36,10 +37,9 @@ export async function runSatisfactionFollowup(): Promise<void> {
       const lead = task.leads;
       const contractor = lead.contractors;
 
-      // TODO: Translate to Finnish
-      const message =
-        `Hi! How was your experience with ${contractor.business_name}? ` +
-        `Reply with a number 1-5 (1=poor, 5=excellent) and any feedback you'd like to share.`;
+      // Use locale-aware SMS template
+      const T = getSmsTemplates((contractor.locale as Locale) ?? 'fi');
+      const message = T.satisfactionFollowup(contractor.business_name);
 
       try {
         await sendSms(lead.caller_phone, contractor.twilio_phone_number, message);

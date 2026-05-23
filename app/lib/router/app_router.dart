@@ -6,6 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
+/// Global navigator key — used by NotificationService for deep linking
+/// from push notification taps (no BuildContext needed).
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+
 import '../config/supabase_config.dart';
 import '../providers/contractor_provider.dart';
 import '../screens/login_screen.dart';
@@ -79,6 +83,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = ref.watch(_routerRefreshProvider);
 
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/login',
     refreshListenable: refreshNotifier,
     redirect: (context, state) {

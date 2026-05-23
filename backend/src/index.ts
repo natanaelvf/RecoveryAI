@@ -13,6 +13,7 @@ import deviceTokenRoute from './routes/api/device-token';
 // --- Middleware imports ---
 import { twilioSignatureMiddleware } from './middleware/twilio-signature';
 import { authMiddleware } from './middleware/auth';
+import { apiRateLimiter, webhookRateLimiter } from './middleware/rate-limit';
 
 // --- Cron job imports ---
 import { runDnrCheck } from './jobs/dnr-check';
@@ -53,14 +54,14 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// --- API routes (authenticated) ---
-app.use('/api', authMiddleware, deviceTokenRoute);
+// --- API routes (authenticated + rate limited) ---
+app.use('/api', apiRateLimiter, authMiddleware, deviceTokenRoute);
 
-// --- Webhook routes (validated by signature) ---
+// --- Webhook routes (validated by signature + rate limited) ---
 // Fix #7: Apply Twilio signature validation to Twilio webhook routes
-app.use('/webhooks/twilio-voice', twilioSignatureMiddleware, twilioVoiceWebhook);
-app.use('/webhooks/twilio-sms', twilioSignatureMiddleware, twilioSmsWebhook);
-app.use('/webhooks/calendly', calendlyWebhook);
+app.use('/webhooks/twilio-voice', webhookRateLimiter, twilioSignatureMiddleware, twilioVoiceWebhook);
+app.use('/webhooks/twilio-sms', webhookRateLimiter, twilioSignatureMiddleware, twilioSmsWebhook);
+app.use('/webhooks/calendly', webhookRateLimiter, calendlyWebhook);
 
 // --- Cron jobs ---
 // DNR check: every 15 minutes

@@ -65,6 +65,7 @@ function makeContractor(overrides: Partial<Contractor> = {}): Contractor {
     after_hours_ring: false,
     timezone: 'Europe/Helsinki',
     tier: 'starter',
+    locale: 'en',
     monthly_sms_cap: 50,
     sms_used_this_month: 5,
     stripe_customer_id: null,
