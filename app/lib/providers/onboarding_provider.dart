@@ -43,7 +43,50 @@ class OnboardingNotifier extends ChangeNotifier {
   bool get isComplete => false; // Always false here; router checks provider.
 
   /// Can advance from current step.
-  bool get canAdvance => true;
+  /// Whether the current step has valid data to proceed.
+  bool get canAdvance {
+    switch (_currentStep) {
+      case 0:
+        return businessName.trim().isNotEmpty && tradeType != null;
+      case 1:
+        return contactName.trim().isNotEmpty &&
+            contactEmail.trim().isNotEmpty &&
+            _isValidEmail(contactEmail.trim()) &&
+            contactPhone.trim().isNotEmpty;
+      case 2:
+        return phoneNumber.trim().isNotEmpty;
+      case 3:
+        return true; // Preferences have sensible defaults.
+      default:
+        return false;
+    }
+  }
+
+  /// Returns a user-facing error message for the current step,
+  /// or null if validation passes.
+  String? get currentStepError {
+    switch (_currentStep) {
+      case 0:
+        if (businessName.trim().isEmpty) return 'Please enter your business name.';
+        if (tradeType == null) return 'Please select your trade.';
+        return null;
+      case 1:
+        if (contactName.trim().isEmpty) return 'Please enter your full name.';
+        if (contactEmail.trim().isEmpty) return 'Please enter your email address.';
+        if (!_isValidEmail(contactEmail.trim())) return 'Please enter a valid email address.';
+        if (contactPhone.trim().isEmpty) return 'Please enter your phone number.';
+        return null;
+      case 2:
+        if (phoneNumber.trim().isEmpty) return 'Please enter your business phone number.';
+        return null;
+      default:
+        return null;
+    }
+  }
+
+  static bool _isValidEmail(String email) {
+    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
+  }
 
   void goToStep(int step) {
     if (step >= 0 && step < totalSteps) {

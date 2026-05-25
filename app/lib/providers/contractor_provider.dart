@@ -38,6 +38,10 @@ class ContractorNotifier extends AsyncNotifier<Contractor> {
   }
 
   /// Save onboarding data — called when the wizard completes.
+  /// NOTE: We intentionally do NOT set AsyncLoading here. Setting loading
+  /// would cause isOnboardingCompleteProvider to momentarily return false
+  /// (since there's no previous value on first onboarding), which triggers
+  /// the router redirect to /onboarding — the exact bug we're fixing.
   Future<void> saveOnboarding({
     required String businessName,
     required String contactName,
@@ -54,7 +58,6 @@ class ContractorNotifier extends AsyncNotifier<Contractor> {
     required int urgencyThresholdNormalMin,
     required double defaultJobValue,
   }) async {
-    state = const AsyncLoading();
     try {
       final updated = await _api.saveOnboarding(
         businessName: businessName,

@@ -77,6 +77,7 @@ class _StatCardState extends State<StatCard>
                   widget.label,
                   style: Theme.of(context).textTheme.labelSmall,
                   overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
               ),
               Container(
@@ -100,15 +101,20 @@ class _StatCardState extends State<StatCard>
             builder: (context, child) {
               final current =
                   (widget.targetValue * _animation.value).round();
-              return Text(
-                '${widget.prefix}${_formatNumber(current)}${widget.suffix}',
-                style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                  fontSize: 28,
+              return FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '${widget.prefix}${_formatNumber(current)}${widget.suffix}',
+                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                    fontSize: 28,
+                  ),
+                  maxLines: 1,
                 ),
               );
             },
           ),
-          const SizedBox(height: 4),
+          const Spacer(),
 
           // Trend
           if (widget.trend.isNotEmpty)

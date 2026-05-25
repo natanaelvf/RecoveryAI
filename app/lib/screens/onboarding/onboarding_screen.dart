@@ -55,30 +55,55 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   }
 
   Future<void> _handleComplete() async {
-    final contractorNotifier = ref.read(contractorProvider.notifier);
     final onboardingNotifier = ref.read(onboardingProvider);
 
-    setState(() => _showSuccess = true);
-    _successController.forward();
+    // Validate the current (final) step before saving.
+    if (!onboardingNotifier.canAdvance) {
+      final error = onboardingNotifier.currentStepError ?? 'Please fill in all required fields.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
 
+    final contractorNotifier = ref.read(contractorProvider.notifier);
     final success = await onboardingNotifier.complete(contractorNotifier);
 
     if (!mounted) return;
 
     if (success) {
+      // Only show success animation AFTER the save succeeds.
+      setState(() => _showSuccess = true);
+      _successController.forward();
       await Future.delayed(const Duration(milliseconds: 800));
       if (mounted) context.go('/dashboard');
     } else {
-      // Save failed — go back to the form.
-      setState(() => _showSuccess = false);
-      _successController.reset();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(onboardingNotifier.error ?? 'Failed to save'),
+          content: Text(onboardingNotifier.error ?? 'Failed to save. Please try again.'),
           behavior: SnackBarBehavior.floating,
         ),
       );
     }
+  }
+
+  /// Advance to the next step with validation.
+  void _handleNext() {
+    final onboarding = ref.read(onboardingProvider);
+    if (!onboarding.canAdvance) {
+      final error = onboarding.currentStepError ?? 'Please fill in all required fields.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    _goToStep(onboarding.currentStep + 1);
   }
 
   @override
@@ -173,9 +198,31 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                       ),
                       TextButton(
                         onPressed: () async {
-                          // Skip onboarding — still persist whatever is filled.
+                          final onboarding = ref.read(onboardingProvider);
+                          // Check minimum required fields for skip
+                          if (onboarding.businessName.trim().isEmpty ||
+                              onboarding.phoneNumber.trim().isEmpty) {
+                            final shouldContinue = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Required fields missing'),
+                                content: const Text(
+                                  'At minimum, your business name and phone number are required to use RecoveryAI. '
+                                  'Please fill these in before continuing.',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.of(ctx).pop(false),
+                                    child: const Text('OK'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (shouldContinue != true && context.mounted) return;
+                          }
+                          // Save whatever is filled and proceed.
                           final contractorNotifier = ref.read(contractorProvider.notifier);
-                          await ref.read(onboardingProvider).complete(contractorNotifier);
+                          await onboarding.complete(contractorNotifier);
                           if (context.mounted) context.go('/dashboard');
                         },
                         child: Text(
@@ -253,21 +300,33 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                   Expanded(
                     flex: 2,
                     child: ElevatedButton.icon(
-                      onPressed: () {
-                        if (currentStep < 3) {
-                          _goToStep(currentStep + 1);
-                        } else {
-                          _handleComplete();
-                        }
-                      },
-                      icon: Icon(
-                        currentStep < 3
-                            ? Icons.arrow_forward_rounded
-                            : Icons.check_rounded,
-                        size: 18,
-                      ),
+                      onPressed: onboarding.isSaving
+                          ? null
+                          : () {
+                              if (currentStep < 3) {
+                                _handleNext();
+                              } else {
+                                _handleComplete();
+                              }
+                            },
+                      icon: onboarding.isSaving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Icon(
+                              currentStep < 3
+                                  ? Icons.arrow_forward_rounded
+                                  : Icons.check_rounded,
+                              size: 18,
+                            ),
                       label: Text(
-                        currentStep < 3 ? 'Continue' : 'Complete Setup',
+                        onboarding.isSaving
+                            ? 'Saving...'
+                            : (currentStep < 3 ? 'Continue' : 'Complete Setup'),
                       ),
                     ),
                   ),

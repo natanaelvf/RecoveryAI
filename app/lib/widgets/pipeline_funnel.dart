@@ -68,7 +68,7 @@ class _PipelineFunnelState extends State<PipelineFunnel>
                   children: [
                     // Stage label
                     SizedBox(
-                      width: 80,
+                      width: 70,
                       child: Text(
                         stage.label,
                         style: TextStyle(
@@ -76,13 +76,17 @@ class _PipelineFunnelState extends State<PipelineFunnel>
                           fontWeight: FontWeight.w600,
                           color: colors.textSecondary,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    // Bar
+                    const SizedBox(width: 4),
+                    // Bar + count
                     Expanded(
                       child: LayoutBuilder(
                         builder: (context, constraints) {
                           return Stack(
+                            clipBehavior: Clip.none,
                             children: [
                               // Track
                               Container(
@@ -114,6 +118,9 @@ class _PipelineFunnelState extends State<PipelineFunnel>
                                     ),
                                   ],
                                 ),
+                              ),
+                              // Count — always visible inside the track
+                              Positioned.fill(
                                 child: Padding(
                                   padding:
                                       const EdgeInsets.symmetric(horizontal: 8),
@@ -124,7 +131,7 @@ class _PipelineFunnelState extends State<PipelineFunnel>
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w700,
-                                        color: colors.textInverse,
+                                        color: colors.textPrimary,
                                       ),
                                     ),
                                   ),

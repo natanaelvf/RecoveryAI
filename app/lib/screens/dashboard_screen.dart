@@ -48,7 +48,7 @@ class DashboardScreen extends ConsumerWidget {
         slivers: [
           // ── Greeting App Bar ────────────────────────
           SliverAppBar(
-            expandedHeight: 100,
+            expandedHeight: 110,
             floating: true,
             snap: true,
             backgroundColor: colors.bgSurface,
@@ -61,9 +61,14 @@ class DashboardScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Text(
-                        '$greeting, ${ref.watch(contractorProvider).valueOrNull?.contactName.split(' ').first ?? 'there'} 👋',
-                        style: Theme.of(context).textTheme.displaySmall,
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '$greeting, ${ref.watch(contractorProvider).valueOrNull?.contactName.split(' ').first ?? 'there'} 👋',
+                          style: Theme.of(context).textTheme.displaySmall,
+                          maxLines: 1,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -142,8 +147,8 @@ class DashboardScreen extends ConsumerWidget {
                 GridView.count(
                   crossAxisCount: 2,
                   mainAxisSpacing: 7,
-                  crossAxisSpacing: 2,
-                  childAspectRatio: 1.65,
+                  crossAxisSpacing: 7,
+                  childAspectRatio: 1.35,
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   children: [

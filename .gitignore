@@ -62,3 +62,17 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+# ========================
+# Agent Skills and Private Files
+# ========================
+.agents/
+
+# Ignore all markdown files
+**/*.md
+*.md
+
+# Except README.md files
+!README.md
+!**/README.md
+
