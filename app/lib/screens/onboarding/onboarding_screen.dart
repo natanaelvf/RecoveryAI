@@ -191,7 +191,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                           ),
                           const SizedBox(width: 10),
                           Text(
-                            'RecoveryAI',
+                            'Unmissed',
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                         ],
@@ -207,7 +207,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                               builder: (ctx) => AlertDialog(
                                 title: const Text('Required fields missing'),
                                 content: const Text(
-                                  'At minimum, your business name and phone number are required to use RecoveryAI. '
+                                  'At minimum, your business name and phone number are required to use Unmissed. '
                                   'Please fill these in before continuing.',
                                 ),
                                 actions: [

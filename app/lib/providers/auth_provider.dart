@@ -178,6 +178,7 @@ class AuthNotifier extends ChangeNotifier {
       }
 
       final googleSignIn = GoogleSignIn(
+        clientId: webClientId,
         serverClientId: webClientId,
         scopes: ['email', 'profile'],
       );

@@ -45,7 +45,7 @@ const TEMPLATES_EN: TemplateSet = {
 
 const TEMPLATES_FI: TemplateSet = {
   consentRequest: (businessName) =>
-    `Hei! Yritit juuri soittaa yritykseen ${businessName}, mutta emme päässeet vastaamaan. Haluaisimme auttaa sinua tekstiviestillä. Vastaa KYLLÄ jatkaaksesi tai EI lopettaaksesi. Tietosuojaseloste: https://recoveryai.fi/privacy`,
+    `Hei! Yritit juuri soittaa yritykseen ${businessName}, mutta emme päässeet vastaamaan. Haluaisimme auttaa sinua tekstiviestillä. Vastaa KYLLÄ jatkaaksesi tai EI lopettaaksesi. Tietosuojaseloste: https://unmissed.io/privacy`,
 
   askIssue: (_businessName) =>
     `Kiitos! Voitko lyhyesti kuvata ongelman, johon tarvitset apua? (esim. "vuotava putki", "rikki mennyt ilmastointi")`,
@@ -71,7 +71,7 @@ const TEMPLATES_FI: TemplateSet = {
 
 const TEMPLATES_PT: TemplateSet = {
   consentRequest: (businessName) =>
-    `Olá! Você ligou para ${businessName} mas não conseguimos atender. Gostaríamos de ajudá-lo por SMS. Responda SIM para continuar ou NÃO para cancelar. Política de privacidade: https://recoveryai.fi/privacy`,
+    `Olá! Você ligou para ${businessName} mas não conseguimos atender. Gostaríamos de ajudá-lo por SMS. Responda SIM para continuar ou NÃO para cancelar. Política de privacidade: https://unmissed.io/privacy`,
 
   askIssue: (_businessName) =>
     `Obrigado! Pode descrever brevemente o problema que precisa resolver? (ex: "cano vazando", "ar-condicionado quebrado")`,
@@ -208,7 +208,6 @@ export async function handleInboundSms(
 ): Promise<void> {
   const body = messageBody.trim();
   const fromNumber = contractor.twilio_phone_number;
-  const T = getTemplates(contractor.locale ?? 'fi');
 
   // Re-fetch lead to get latest status (fix #1: race condition prevention)
   const lead = await refreshLead(leadInput.id);
@@ -216,6 +215,8 @@ export async function handleInboundSms(
     console.error(`[sms] Lead ${leadInput.id} not found during re-fetch`);
     return;
   }
+
+  const T = getTemplates(lead.locale ?? contractor.locale ?? 'fi');
 
   // Record inbound message
   await recordMessage(lead.id, 'inbound', body);
@@ -371,7 +372,7 @@ export async function initiateConsentSms(
   lead: Lead,
   contractor: Contractor
 ): Promise<void> {
-  const T = getTemplates(contractor.locale ?? 'fi');
+  const T = getTemplates(lead.locale ?? contractor.locale ?? 'fi');
   const sent = await sendAndRecord(lead, contractor.twilio_phone_number,
     T.consentRequest(contractor.business_name));
 

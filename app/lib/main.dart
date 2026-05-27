@@ -17,8 +17,12 @@ void main() async {
   await dotenv.load(fileName: '.env.$env');
 
   // Initialize Firebase
-  await Firebase.initializeApp();
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  try {
+    await Firebase.initializeApp();
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  } catch (e) {
+    debugPrint('[firebase] Firebase initialization skipped/failed: $e');
+  }
 
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL']!,

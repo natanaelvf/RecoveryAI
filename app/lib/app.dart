@@ -17,7 +17,7 @@ class App extends ConsumerWidget {
     final themeMode = themeModeFromPreference(themePref);
 
     return MaterialApp.router(
-      title: 'RecoveryAI',
+      title: 'Unmissed',
       debugShowCheckedModeBanner: false,
 
       // Dual themes — system detection + manual override
@@ -34,10 +34,7 @@ class App extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('en'),
-        Locale('fi'),
-      ],
+      supportedLocales: const [Locale('en'), Locale('fi')],
       locale: const Locale('en'), // Default to English
     );
   }

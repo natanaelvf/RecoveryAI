@@ -81,6 +81,7 @@ export interface Lead {
   satisfaction_feedback: string | null;
   notes: string | null;
   called_during_after_hours: boolean;
+  locale: Locale;
   created_at: string;
   updated_at: string;
 }

@@ -56,7 +56,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _contactPhoneController.text = c.contactPhone;
     _urgentThresholdController.text = c.urgencyThresholdUrgentMin.toString();
     _normalThresholdController.text = c.urgencyThresholdNormalMin.toString();
-    _defaultValueController.text = c.defaultJobValue?.toInt().toString() ?? '350';
+    _defaultValueController.text =
+        c.defaultJobValue?.toInt().toString() ?? '350';
     _calendlyController.text = c.calendlyUrl ?? '';
     _workingDays = List.from(c.workingDays);
 
@@ -109,15 +110,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.toastSettingsSaved)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.toastSettingsSaved)));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to save: $e')));
       }
     }
   }
@@ -130,211 +131,283 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final themePref = ref.watch(themePreferenceProvider);
 
     return contractorAsync.when(
-      loading: () => Scaffold(
-        backgroundColor: colors.bgBase,
-        body: const Center(child: CircularProgressIndicator()),
-      ),
-      error: (e, _) => Scaffold(
-        backgroundColor: colors.bgBase,
-        body: Center(child: Text('Error loading settings: $e')),
-      ),
+      loading:
+          () => Scaffold(
+            backgroundColor: colors.bgBase,
+            body: const Center(child: CircularProgressIndicator()),
+          ),
+      error:
+          (e, _) => Scaffold(
+            backgroundColor: colors.bgBase,
+            body: Center(child: Text('Error loading settings: $e')),
+          ),
       data: (c) {
         _initFromContractor(c);
         final smsPercent = c.smsUsagePercent;
         final smsWarning = smsPercent > 0.8;
 
-    final dayLabels = [
-      l10n.dayMon, l10n.dayTue, l10n.dayWed,
-      l10n.dayThu, l10n.dayFri, l10n.daySat, l10n.daySun,
-    ];
+        final dayLabels = [
+          l10n.dayMon,
+          l10n.dayTue,
+          l10n.dayWed,
+          l10n.dayThu,
+          l10n.dayFri,
+          l10n.daySat,
+          l10n.daySun,
+        ];
 
-    return Scaffold(
-      backgroundColor: colors.bgBase,
-      appBar: AppBar(
-        title: Text(l10n.settingsTitle),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ElevatedButton(
-              onPressed: _save,
-              child: Text(l10n.settingsSave),
-            ),
+        return Scaffold(
+          backgroundColor: colors.bgBase,
+          appBar: AppBar(
+            title: Text(l10n.settingsTitle),
+            actions: [
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ElevatedButton(
+                  onPressed: _save,
+                  child: Text(l10n.settingsSave),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Theme selector
-          _SectionHeader(title: 'APPEARANCE'),
-          const SizedBox(height: 8),
-          Container(
+          body: ListView(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: colors.bgSurface,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: colors.borderSubtle),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('THEME', style: Theme.of(context).textTheme.labelSmall),
-                const SizedBox(height: 10),
-                Row(
+            children: [
+              // Theme selector
+              _SectionHeader(title: 'APPEARANCE'),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: colors.bgSurface,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: colors.borderSubtle),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _ThemeOption(
-                      icon: Icons.brightness_auto,
-                      label: 'System',
-                      isSelected: themePref == ThemePreference.system,
-                      onTap: () => ref.read(themePreferenceProvider.notifier).state = ThemePreference.system,
+                    Text(
+                      'THEME',
+                      style: Theme.of(context).textTheme.labelSmall,
                     ),
-                    const SizedBox(width: 8),
-                    _ThemeOption(
-                      icon: Icons.dark_mode_rounded,
-                      label: 'Dark',
-                      isSelected: themePref == ThemePreference.dark,
-                      onTap: () => ref.read(themePreferenceProvider.notifier).state = ThemePreference.dark,
-                    ),
-                    const SizedBox(width: 8),
-                    _ThemeOption(
-                      icon: Icons.light_mode_rounded,
-                      label: 'Light',
-                      isSelected: themePref == ThemePreference.light,
-                      onTap: () => ref.read(themePreferenceProvider.notifier).state = ThemePreference.light,
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        _ThemeOption(
+                          icon: Icons.brightness_auto,
+                          label: 'System',
+                          isSelected: themePref == ThemePreference.system,
+                          onTap:
+                              () =>
+                                  ref
+                                      .read(themePreferenceProvider.notifier)
+                                      .state = ThemePreference.system,
+                        ),
+                        const SizedBox(width: 8),
+                        _ThemeOption(
+                          icon: Icons.dark_mode_rounded,
+                          label: 'Dark',
+                          isSelected: themePref == ThemePreference.dark,
+                          onTap:
+                              () =>
+                                  ref
+                                      .read(themePreferenceProvider.notifier)
+                                      .state = ThemePreference.dark,
+                        ),
+                        const SizedBox(width: 8),
+                        _ThemeOption(
+                          icon: Icons.light_mode_rounded,
+                          label: 'Light',
+                          isSelected: themePref == ThemePreference.light,
+                          onTap:
+                              () =>
+                                  ref
+                                      .read(themePreferenceProvider.notifier)
+                                      .state = ThemePreference.light,
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Business Info
-          _SectionHeader(title: l10n.settingsBusinessInfo),
-          const SizedBox(height: 8),
-          _FormField(label: l10n.settingsBusinessName, controller: _businessNameController),
-          _FormField(label: l10n.settingsContactName, controller: _contactNameController),
-          _FormField(label: l10n.settingsContactEmail, controller: _contactEmailController, keyboardType: TextInputType.emailAddress),
-          _FormField(label: l10n.settingsContactPhone, controller: _contactPhoneController, keyboardType: TextInputType.phone),
-
-          const SizedBox(height: 24),
-
-          // Working Hours
-          _SectionHeader(title: l10n.settingsWorkingHours),
-          const SizedBox(height: 8),
-          Text(
-            l10n.settingsWorkingDays.toUpperCase(),
-            style: Theme.of(context).textTheme.labelSmall,
-          ),
-          const SizedBox(height: 8),
-          DayToggleRow(
-            selectedDays: _workingDays,
-            dayLabels: dayLabels,
-            onChanged: (days) => setState(() => _workingDays = days),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _TimePickerField(
-                  label: l10n.settingsStartTime,
-                  time: _startTime,
-                  onChanged: (t) => setState(() => _startTime = t),
-                ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _TimePickerField(
-                  label: l10n.settingsEndTime,
-                  time: _endTime,
-                  onChanged: (t) => setState(() => _endTime = t),
-                ),
+
+              const SizedBox(height: 24),
+
+              // Business Info
+              _SectionHeader(title: l10n.settingsBusinessInfo),
+              const SizedBox(height: 8),
+              _FormField(
+                label: l10n.settingsBusinessName,
+                controller: _businessNameController,
               ),
-            ],
-          ),
+              _FormField(
+                label: l10n.settingsContactName,
+                controller: _contactNameController,
+              ),
+              _FormField(
+                label: l10n.settingsContactEmail,
+                controller: _contactEmailController,
+                keyboardType: TextInputType.emailAddress,
+              ),
+              _FormField(
+                label: l10n.settingsContactPhone,
+                controller: _contactPhoneController,
+                keyboardType: TextInputType.phone,
+              ),
 
-          const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-          // Recovery Settings
-          _SectionHeader(title: l10n.settingsRecovery),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(child: _FormField(label: l10n.settingsUrgentThreshold, controller: _urgentThresholdController, keyboardType: TextInputType.number)),
-              const SizedBox(width: 12),
-              Expanded(child: _FormField(label: l10n.settingsNormalThreshold, controller: _normalThresholdController, keyboardType: TextInputType.number)),
-            ],
-          ),
-          Row(
-            children: [
-              Expanded(child: _FormField(label: l10n.settingsDefaultJobValue, controller: _defaultValueController, keyboardType: TextInputType.number)),
-              const SizedBox(width: 12),
-              Expanded(child: _FormField(label: l10n.settingsCalendlyUrl, controller: _calendlyController, keyboardType: TextInputType.url)),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          // Account
-          _SectionHeader(title: l10n.settingsAccount),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: colors.bgSurface,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: colors.borderSubtle),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Tier
-                Text(l10n.settingsTier.toUpperCase(), style: Theme.of(context).textTheme.labelSmall),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: colors.accentSuccess.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        c.tier.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: colors.accentSuccess,
-                        ),
-                      ),
+              // Working Hours
+              _SectionHeader(title: l10n.settingsWorkingHours),
+              const SizedBox(height: 8),
+              Text(
+                l10n.settingsWorkingDays.toUpperCase(),
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
+              const SizedBox(height: 8),
+              DayToggleRow(
+                selectedDays: _workingDays,
+                dayLabels: dayLabels,
+                onChanged: (days) => setState(() => _workingDays = days),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _TimePickerField(
+                      label: l10n.settingsStartTime,
+                      time: _startTime,
+                      onChanged: (t) => setState(() => _startTime = t),
                     ),
-                    const SizedBox(width: 10),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _TimePickerField(
+                      label: l10n.settingsEndTime,
+                      time: _endTime,
+                      onChanged: (t) => setState(() => _endTime = t),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 24),
+
+              // Recovery Settings
+              _SectionHeader(title: l10n.settingsRecovery),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: _FormField(
+                      label: l10n.settingsUrgentThreshold,
+                      controller: _urgentThresholdController,
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _FormField(
+                      label: l10n.settingsNormalThreshold,
+                      controller: _normalThresholdController,
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: _FormField(
+                      label: l10n.settingsDefaultJobValue,
+                      controller: _defaultValueController,
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _FormField(
+                      label: l10n.settingsCalendlyUrl,
+                      controller: _calendlyController,
+                      keyboardType: TextInputType.url,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 24),
+
+              // Account
+              _SectionHeader(title: l10n.settingsAccount),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: colors.bgSurface,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: colors.borderSubtle),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Tier
                     Text(
-                      '${c.tierPrice}/mo',
+                      l10n.settingsTier.toUpperCase(),
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colors.accentSuccess.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            c.tier.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: colors.accentSuccess,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          '${c.tierPrice}/mo',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // SMS usage
+                    Text(
+                      l10n.settingsSmsUsage.toUpperCase(),
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      l10n.settingsSmsUsedOf(
+                        c.smsUsedThisMonth,
+                        c.monthlySMSCap,
+                      ),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
+                    const SizedBox(height: 8),
+                    UsageBar(percent: smsPercent, warning: smsWarning),
                   ],
                 ),
-                const SizedBox(height: 16),
+              ),
 
-                // SMS usage
-                Text(l10n.settingsSmsUsage.toUpperCase(), style: Theme.of(context).textTheme.labelSmall),
-                const SizedBox(height: 6),
-                Text(
-                  l10n.settingsSmsUsedOf(c.smsUsedThisMonth, c.monthlySMSCap),
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 8),
-                UsageBar(percent: smsPercent, warning: smsWarning),
-              ],
-            ),
+              const SizedBox(height: 24),
+            ],
           ),
-
-          const SizedBox(height: 24),
-        ],
-      ),
-    );
+        );
       },
     );
   }
@@ -371,7 +444,10 @@ class _FormField extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label.toUpperCase(), style: Theme.of(context).textTheme.labelSmall),
+          Text(
+            label.toUpperCase(),
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
           const SizedBox(height: 6),
           TextField(controller: controller, keyboardType: keyboardType),
         ],
@@ -398,7 +474,10 @@ class _TimePickerField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label.toUpperCase(), style: Theme.of(context).textTheme.labelSmall),
+        Text(
+          label.toUpperCase(),
+          style: Theme.of(context).textTheme.labelSmall,
+        ),
         const SizedBox(height: 6),
         GestureDetector(
           onTap: () async {
@@ -471,7 +550,8 @@ class _ThemeOption extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: isSelected ? colors.accentPrimary : colors.textSecondary,
+                  color:
+                      isSelected ? colors.accentPrimary : colors.textSecondary,
                 ),
               ),
             ],

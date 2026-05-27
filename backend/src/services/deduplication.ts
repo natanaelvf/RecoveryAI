@@ -48,10 +48,10 @@ export async function findOrCreateLead(
     return { lead: updated as Lead, isNew: false };
   }
 
-  // Look up contractor's default job value for estimated_value
+  // Look up contractor's default job value for estimated_value and default locale
   const { data: contractor } = await supabase
     .from('contractors')
-    .select('default_job_value')
+    .select('default_job_value, locale')
     .eq('id', contractorId)
     .single();
 
@@ -68,6 +68,7 @@ export async function findOrCreateLead(
       dnr_alert_sent: false,
       called_during_after_hours: calledDuringAfterHours,
       estimated_value: contractor?.default_job_value ?? null,
+      locale: contractor?.locale ?? 'fi',
     })
     .select('*')
     .single();

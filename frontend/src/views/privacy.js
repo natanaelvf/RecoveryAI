@@ -10,13 +10,13 @@ export function privacyView() {
         <div class="content__inner" style="max-width: 720px; margin: 0 auto; padding: 32px 20px;">
           <header style="margin-bottom: 32px;">
             <h1 style="font-size: 1.8rem; font-weight: 700; margin-bottom: 8px;">Privacy Policy</h1>
-            <p style="opacity: 0.6; font-size: 0.85rem;">RecoveryAI — Missed-Lead Recovery Service</p>
+            <p style="opacity: 0.6; font-size: 0.85rem;">Unmissed — Missed-Lead Recovery Service</p>
             <p style="opacity: 0.5; font-size: 0.8rem;">Last updated: May 2026</p>
           </header>
 
           <section style="margin-bottom: 24px;">
             <h2 style="font-size: 1.2rem; font-weight: 600; margin-bottom: 12px;">1. What Data We Collect</h2>
-            <p style="margin-bottom: 12px;">When you call a business that uses RecoveryAI and they miss your call, we may collect the following data through an SMS conversation — <strong>only if you give explicit consent</strong>:</p>
+            <p style="margin-bottom: 12px;">When you call a business that uses Unmissed and they miss your call, we may collect the following data through an SMS conversation — <strong>only if you give explicit consent</strong>:</p>
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 0.9rem;">
               <tr style="border-bottom: 1px solid var(--clr-border, #e0e0e0);">
                 <td style="padding: 8px 12px; font-weight: 600;">Phone number</td>
@@ -53,7 +53,7 @@ export function privacyView() {
           <section style="margin-bottom: 24px;">
             <h2 style="font-size: 1.2rem; font-weight: 600; margin-bottom: 12px;">2. Legal Basis</h2>
             <p style="margin-bottom: 12px;">We process your data based on <strong>explicit consent</strong> (GDPR Article 6(1)(a)). You must reply <strong>YES</strong> (or <strong>KYLLÄ</strong>) to opt in. Reply <strong>STOP</strong> (or <strong>EI</strong>) at any time to withdraw consent.</p>
-            <p>You can also withdraw consent by emailing <a href="mailto:privacy@recoveryai.fi" style="color: var(--clr-primary, #6366f1);">privacy@recoveryai.fi</a></p>
+            <p>You can also withdraw consent by emailing <a href="mailto:privacy@unmissed.io" style="color: var(--clr-primary, #6366f1);">privacy@unmissed.io</a></p>
           </section>
 
           <section style="margin-bottom: 24px;">
@@ -106,12 +106,12 @@ export function privacyView() {
               <li><strong>Portability</strong> — receive data in machine-readable format</li>
               <li><strong>Object</strong> — object to processing</li>
             </ul>
-            <p style="margin-top: 12px;">Contact: <a href="mailto:privacy@recoveryai.fi" style="color: var(--clr-primary, #6366f1);">privacy@recoveryai.fi</a> (response within 30 days)</p>
+            <p style="margin-top: 12px;">Contact: <a href="mailto:privacy@unmissed.io" style="color: var(--clr-primary, #6366f1);">privacy@unmissed.io</a> (response within 30 days)</p>
             <p style="margin-top: 8px; font-size: 0.85rem; opacity: 0.7;">Complaints: <a href="https://tietosuoja.fi" target="_blank" style="color: var(--clr-primary, #6366f1);">Finnish Data Protection Ombudsman</a></p>
           </section>
 
           <footer style="margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--clr-border, #e0e0e0); font-size: 0.8rem; opacity: 0.6;">
-            <p>RecoveryAI — <a href="mailto:privacy@recoveryai.fi">privacy@recoveryai.fi</a></p>
+            <p>Unmissed — <a href="mailto:privacy@unmissed.io">privacy@unmissed.io</a></p>
           </footer>
         </div>
       `;

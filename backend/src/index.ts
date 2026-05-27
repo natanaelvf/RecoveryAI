@@ -49,6 +49,9 @@ app.use(
 );
 app.use(express.urlencoded({ extended: true })); // Twilio sends form-encoded
 
+// --- Static files (for voicemails) ---
+app.use('/audio', express.static('public/audio'));
+
 // --- Health check ---
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

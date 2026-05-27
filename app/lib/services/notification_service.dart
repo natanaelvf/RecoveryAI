@@ -12,7 +12,12 @@ class NotificationService {
   factory NotificationService() => _instance;
   NotificationService._();
 
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  FirebaseMessaging? _messagingInstance;
+  FirebaseMessaging get _messaging => _messagingInstance ??= FirebaseMessaging.instance;
+
+  @visibleForTesting
+  set messagingInstance(FirebaseMessaging instance) => _messagingInstance = instance;
+
   String? _currentToken;
 
   /// Initialize Firebase and request notification permissions.

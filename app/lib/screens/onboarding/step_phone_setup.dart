@@ -131,7 +131,7 @@ class _StepPhoneSetupState extends ConsumerState<StepPhoneSetup> {
           const SizedBox(height: 10),
           _SetupTypeOption(
             icon: Icons.call_merge_rounded,
-            title: 'Forward to RecoveryAI',
+            title: 'Forward to Unmissed',
             subtitle: 'Keep your number. We detect missed calls via forwarding.',
             isSelected: onboarding.numberSetupType == 'forwarding',
             onTap: () {
