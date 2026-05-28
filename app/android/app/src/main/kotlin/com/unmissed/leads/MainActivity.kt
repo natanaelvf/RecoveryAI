@@ -1,4 +1,4 @@
-package com.missedleadrecovery.missed_lead_recovery
+package com.unmissed.leads
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
