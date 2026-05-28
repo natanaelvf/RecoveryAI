@@ -11,14 +11,31 @@ import { supabase } from '../config/supabase';
 let firebaseInitialized = false;
 
 try {
-  if (!admin.apps.length && env.firebaseServiceAccountPath) {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const serviceAccount = require(env.firebaseServiceAccountPath);
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
-    firebaseInitialized = true;
-    console.log('[fcm] Firebase Admin SDK initialized');
+  if (!admin.apps.length) {
+    let serviceAccount: admin.ServiceAccount | null = null;
+
+    // Priority: base64 secret > inline JSON > file path
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_B64) {
+      const decoded = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_B64, 'base64').toString('utf-8');
+      serviceAccount = JSON.parse(decoded);
+      console.log('[fcm] Using FIREBASE_SERVICE_ACCOUNT_B64');
+    } else if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+      console.log('[fcm] Using FIREBASE_SERVICE_ACCOUNT_JSON');
+    } else if (env.firebaseServiceAccountPath) {
+      // Fallback to file path (for local development)
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      serviceAccount = require(env.firebaseServiceAccountPath);
+      console.log('[fcm] Using FIREBASE_SERVICE_ACCOUNT_PATH');
+    }
+
+    if (serviceAccount) {
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+      firebaseInitialized = true;
+      console.log('[fcm] Firebase Admin SDK initialized');
+    }
   } else if (admin.apps.length) {
     firebaseInitialized = true;
   }
@@ -81,7 +98,7 @@ export async function sendPushNotification(
               channelId: 'urgent_leads',
               sound: 'urgent_alarm',
               defaultVibrateTimings: false,
-              vibrateTimingsMillis: ['0', '500', '200', '500', '200', '500', '200', '500'],
+              vibrateTimingsMillis: [0, 500, 200, 500, 200, 500, 200, 500],
               notificationCount: 1,
             }
           : {

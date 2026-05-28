@@ -1,9 +1,9 @@
 flutter_launcher_icons:
-  android: "launcher_icon"
-  ios: true
-  image_path: "assets/logo/icon_source.png"
+  android: true
+  ios: false
+  image_path: "assets/logo/unmissed_app-icon_1x.png"
+  min_sdk_android: 21
 
   # Adaptive icons (Android 8.0+)
-  # Ensure the foreground image is transparent and your logo is centered with sufficient padding
   adaptive_icon_background: "#0F1419"
-  adaptive_icon_foreground: "assets/logo/icon_foreground.png"
+  adaptive_icon_foreground: "assets/logo/unmissed_app-icon_1x.png"

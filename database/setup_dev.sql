@@ -5,17 +5,19 @@
 -- Run this in the Supabase SQL Editor for the DEV project
 -- (wuizbznbyvxauavpjrgz)
 --
--- Contains: clean slate → schema → RLS → indexes → auth trigger → seed data
+-- Contains: clean slate → schema → RLS → indexes → functions → auth trigger → seed
+-- This is the SINGLE source of truth for dev. No separate migrations needed.
+-- When you change the schema, update THIS file.
 -- ============================================================================
 
 BEGIN;
 
 -- ============================================================================
 -- STEP 0: CLEAN SLATE
--- Drop everything in reverse dependency order (idempotent)
 -- ============================================================================
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS public.handle_new_user();
+DROP FUNCTION IF EXISTS public.increment_sms_usage(uuid);
 
 DROP TABLE IF EXISTS job_costs CASCADE;
 DROP TABLE IF EXISTS messages CASCADE;
@@ -33,9 +35,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- STEP 2: TABLES
 -- ============================================================================
 
--- contractors — each represents a home service business
 CREATE TABLE contractors (
-  id                            uuid PRIMARY KEY,  -- must equal auth.uid() — set by signup trigger
+  id                            uuid PRIMARY KEY,  -- must equal auth.uid()
   business_name                 text NOT NULL,
   contact_name                  text NOT NULL,
   contact_email                 text NOT NULL,
@@ -59,14 +60,14 @@ CREATE TABLE contractors (
     CHECK (tier IN ('starter', 'growth', 'pro')),
   monthly_sms_cap               int DEFAULT 50,
   sms_used_this_month           int DEFAULT 0,
-  fcm_token                     text,   -- Firebase Cloud Messaging device token
+  locale                        text NOT NULL DEFAULT 'fi'
+    CHECK (locale IN ('fi', 'en', 'pt')),
+  fcm_token                     text,
   stripe_customer_id            text,
   created_at                    timestamptz DEFAULT now(),
   updated_at                    timestamptz DEFAULT now()
 );
-COMMENT ON TABLE contractors IS 'Contractor accounts — each represents a home service business.';
 
--- leads — missed call lifecycle
 CREATE TABLE leads (
   id                        uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   contractor_id             uuid NOT NULL REFERENCES contractors(id) ON DELETE CASCADE,
@@ -84,6 +85,8 @@ CREATE TABLE leads (
       'booking_sent', 'booked', 'completed', 'followed_up',
       'dnr_alert', 'no_consent'
     )),
+  locale                    text NOT NULL DEFAULT 'fi'
+    CHECK (locale IN ('fi', 'en', 'pt')),
   consent_given             boolean DEFAULT false,
   consent_given_at          timestamptz,
   booking_time              timestamptz,
@@ -94,26 +97,21 @@ CREATE TABLE leads (
   satisfaction_score        int
     CHECK (satisfaction_score IS NULL OR (satisfaction_score >= 1 AND satisfaction_score <= 5)),
   satisfaction_feedback     text,
-  notes                     text,   -- contractor-editable notes
+  notes                     text,
   called_during_after_hours boolean DEFAULT false,
   created_at                timestamptz DEFAULT now(),
   updated_at                timestamptz DEFAULT now()
 );
-COMMENT ON TABLE leads IS 'Missed-call leads — each row is one caller who did not reach the contractor.';
 
--- messages — SMS conversation log
 CREATE TABLE messages (
   id                  uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   lead_id             uuid NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
-  direction           text NOT NULL
-    CHECK (direction IN ('inbound', 'outbound')),
+  direction           text NOT NULL CHECK (direction IN ('inbound', 'outbound')),
   body                text NOT NULL,
   twilio_message_sid  text,
   sent_at             timestamptz DEFAULT now()
 );
-COMMENT ON TABLE messages IS 'SMS conversation log — every message sent to or received from a lead.';
 
--- scheduled_tasks — deferred jobs
 CREATE TABLE scheduled_tasks (
   id          uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   lead_id     uuid NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
@@ -123,9 +121,7 @@ CREATE TABLE scheduled_tasks (
   executed    boolean DEFAULT false,
   created_at  timestamptz DEFAULT now()
 );
-COMMENT ON TABLE scheduled_tasks IS 'Deferred tasks — the cron runner picks these up when execute_at <= now().';
 
--- audit_log — GDPR compliance
 CREATE TABLE audit_log (
   id            uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   action        text NOT NULL,
@@ -134,9 +130,7 @@ CREATE TABLE audit_log (
   performed_by  text DEFAULT 'system',
   performed_at  timestamptz DEFAULT now()
 );
-COMMENT ON TABLE audit_log IS 'GDPR audit log — records data deletion and anonymization events without PII.';
 
--- job_costs — per-lead cost entries
 CREATE TABLE job_costs (
   id          uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   lead_id     uuid NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
@@ -144,7 +138,6 @@ CREATE TABLE job_costs (
   amount      decimal NOT NULL CHECK (amount > 0),
   created_at  timestamptz DEFAULT now()
 );
-COMMENT ON TABLE job_costs IS 'Per-lead cost entries — materials, labour, travel etc.';
 
 -- ============================================================================
 -- STEP 3: ROW LEVEL SECURITY
@@ -188,10 +181,10 @@ CREATE INDEX idx_scheduled_tasks_pending ON scheduled_tasks (execute_at, execute
 CREATE INDEX idx_job_costs_lead ON job_costs (lead_id);
 
 -- ============================================================================
--- STEP 5: AUTH TRIGGER
--- Auto-create a contractors row when a new user signs up
+-- STEP 5: FUNCTIONS
 -- ============================================================================
 
+-- Auth trigger: auto-create contractor row on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -200,20 +193,11 @@ SET search_path = ''
 AS $$
 BEGIN
   INSERT INTO public.contractors (
-    id,
-    business_name,
-    contact_name,
-    contact_email,
-    contact_phone,
-    twilio_phone_number
+    id, business_name, contact_name, contact_email, contact_phone, twilio_phone_number
   ) VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data ->> 'business_name', ''),
-    COALESCE(
-      NEW.raw_user_meta_data ->> 'full_name',
-      NEW.raw_user_meta_data ->> 'name',
-      ''
-    ),
+    COALESCE(NEW.raw_user_meta_data ->> 'full_name', NEW.raw_user_meta_data ->> 'name', ''),
     COALESCE(NEW.email, ''),
     '',
     ''
@@ -224,7 +208,6 @@ BEGIN
         WHEN public.contractors.contact_name = '' THEN EXCLUDED.contact_name
         ELSE public.contractors.contact_name
       END;
-
   RETURN NEW;
 END;
 $$;
@@ -234,82 +217,67 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
 
+-- Atomic SMS cap check-and-increment
+CREATE OR REPLACE FUNCTION public.increment_sms_usage(p_contractor_id uuid)
+RETURNS int
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_new_count int;
+BEGIN
+  UPDATE public.contractors
+  SET sms_used_this_month = sms_used_this_month + 1
+  WHERE id = p_contractor_id
+    AND sms_used_this_month < monthly_sms_cap
+  RETURNING sms_used_this_month INTO v_new_count;
+
+  IF NOT FOUND THEN
+    RETURN -1;
+  END IF;
+
+  RETURN v_new_count;
+END;
+$$;
+
 -- ============================================================================
--- STEP 6: DEV SEED DATA
--- Test contractor + sample leads (uses hardcoded UUIDs — dev only)
--- NOTE: This contractor won't match any auth user. That's fine for dev —
--- use the app's signup flow to create real auth-linked contractors.
+-- STEP 6: DEV SEED — Test contractor with real numbers
 -- ============================================================================
+-- Contractor (you):    +351 924 311 374
+-- Twilio number:       +358 45 490 1654
+-- Test caller (buddy): +358 41 490 0679  ← not in DB, he triggers lead creation by calling
 
 INSERT INTO contractors (
   id, business_name, contact_name, contact_email, contact_phone,
   twilio_phone_number, number_setup_type, calendly_url, trade_type,
   default_job_value, urgency_threshold_urgent_min, urgency_threshold_normal_min,
   working_hours_start, working_hours_end, working_days,
-  after_hours_emergency_policy, after_hours_ring, timezone, tier, monthly_sms_cap
+  after_hours_emergency_policy, after_hours_ring, timezone,
+  tier, monthly_sms_cap, sms_used_this_month, locale
 ) VALUES (
   'a1b2c3d4-0000-4000-8000-000000000001',
-  'Helsinki Plumbing Oy', 'Mikko Virtanen', 'mikko@helsinkiplumbing.fi',
-  '+358401234567', '+358509999001', 'forwarding',
-  'https://calendly.com/helsinki-plumbing/callback', 'plumber',
-  250.00, 60, 1440, '08:00', '17:00', '{1,2,3,4,5}',
-  'Flooding, burst pipes, or sewage backup — call immediately. Dripping taps can wait until morning.',
-  true, 'Europe/Helsinki', 'starter', 50
+  'Helsinki Plumbing Oy',
+  'Natan',
+  'natanaelvf@unmissed.info',
+  '+351924311374',              -- your phone (contractor)
+  '+358454901654',              -- Twilio number (what callers dial)
+  'forwarding',
+  'https://calendly.com/natanaelvf-unmissed',
+  'plumber',
+  250.00, 60, 1440,
+  '08:00', '22:00',             -- wide window so testing isn't "after hours"
+  '{1,2,3,4,5,6,7}',           -- all days so weekend testing works
+  'Flooding, burst pipes, or sewage backup.',
+  false,
+  'Europe/Helsinki',
+  'growth', 150, 0, 'fi'
 );
-
-INSERT INTO leads (
-  id, contractor_id, caller_phone, caller_name, issue_description,
-  urgency, call_count, status, consent_given, consent_given_at,
-  booking_time, calendly_event_id, estimated_value, created_at
-) VALUES (
-  'b1b2c3d4-0000-4000-8000-000000000001',
-  'a1b2c3d4-0000-4000-8000-000000000001',
-  '+358401111111', 'Anna Korhonen', 'Leaking pipe under the kitchen sink',
-  'high', 1, 'booked', true, now() - interval '2 hours',
-  now() + interval '1 day', 'evt_calendly_sample_001', 250.00,
-  now() - interval '3 hours'
-);
-
-INSERT INTO messages (lead_id, direction, body, sent_at) VALUES
-  ('b1b2c3d4-0000-4000-8000-000000000001', 'outbound',
-   'Hi, you just tried to reach Helsinki Plumbing Oy. We can help get you connected. Reply YES if you''d like us to arrange a callback, or STOP to opt out.',
-   now() - interval '3 hours'),
-  ('b1b2c3d4-0000-4000-8000-000000000001', 'inbound', 'YES', now() - interval '2 hours 55 minutes'),
-  ('b1b2c3d4-0000-4000-8000-000000000001', 'outbound',
-   'What issue are you experiencing? (e.g., leaking pipe, broken AC, electrical problem)',
-   now() - interval '2 hours 54 minutes'),
-  ('b1b2c3d4-0000-4000-8000-000000000001', 'inbound',
-   'Leaking pipe under the kitchen sink', now() - interval '2 hours 50 minutes'),
-  ('b1b2c3d4-0000-4000-8000-000000000001', 'outbound',
-   'How urgent is this? Reply 1-4: 1 — Emergency, 2 — Urgent (today/tomorrow), 3 — This week, 4 — Not urgent',
-   now() - interval '2 hours 49 minutes'),
-  ('b1b2c3d4-0000-4000-8000-000000000001', 'inbound', '2', now() - interval '2 hours 45 minutes'),
-  ('b1b2c3d4-0000-4000-8000-000000000001', 'outbound',
-   'Got it. What''s your name? And here''s a link to book a callback: https://calendly.com/helsinki-plumbing/callback',
-   now() - interval '2 hours 44 minutes'),
-  ('b1b2c3d4-0000-4000-8000-000000000001', 'inbound', 'Anna Korhonen', now() - interval '2 hours 40 minutes'),
-  ('b1b2c3d4-0000-4000-8000-000000000001', 'outbound',
-   'You''re booked with Helsinki Plumbing Oy on tomorrow at 10:00. They''ll call you at this number.',
-   now() - interval '2 hours');
-
-INSERT INTO leads (
-  id, contractor_id, caller_phone, issue_description, urgency,
-  call_count, status, consent_given, called_during_after_hours, created_at
-) VALUES (
-  'b1b2c3d4-0000-4000-8000-000000000002',
-  'a1b2c3d4-0000-4000-8000-000000000001',
-  '+358402222222', NULL, 'unknown', 2, 'consent_sent', false, true,
-  now() - interval '30 minutes'
-);
-
-INSERT INTO messages (lead_id, direction, body, sent_at) VALUES
-  ('b1b2c3d4-0000-4000-8000-000000000002', 'outbound',
-   'Hi, you just tried to reach Helsinki Plumbing Oy. We can help get you connected. Reply YES if you''d like us to arrange a callback, or STOP to opt out.',
-   now() - interval '30 minutes');
 
 COMMIT;
 
 -- ============================================================================
 -- ✅ DEV SETUP COMPLETE
--- Tables, RLS, indexes, auth trigger, and seed data are all in place.
+-- Schema, RLS, indexes, functions, auth trigger, and test contractor ready.
+-- No fake leads — the system creates them when real calls come in.
 -- ============================================================================

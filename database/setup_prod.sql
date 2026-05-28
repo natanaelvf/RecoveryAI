@@ -5,18 +5,18 @@
 -- Run this in the Supabase SQL Editor for the PROD project
 -- (bgtfryaocodokjqjkffx)
 --
--- Contains: clean slate → schema → RLS → indexes → auth trigger
--- NO seed data — prod starts empty, contractors created via signup
+-- Contains: clean slate → schema → RLS → indexes → functions → auth trigger
+-- NO seed data — contractors are created via the signup flow.
 -- ============================================================================
 
 BEGIN;
 
 -- ============================================================================
 -- STEP 0: CLEAN SLATE
--- Drop everything in reverse dependency order (idempotent)
 -- ============================================================================
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS public.handle_new_user();
+DROP FUNCTION IF EXISTS public.increment_sms_usage(uuid);
 
 DROP TABLE IF EXISTS job_costs CASCADE;
 DROP TABLE IF EXISTS messages CASCADE;
@@ -34,9 +34,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- STEP 2: TABLES
 -- ============================================================================
 
--- contractors — each represents a home service business
 CREATE TABLE contractors (
-  id                            uuid PRIMARY KEY,  -- must equal auth.uid() — set by signup trigger
+  id                            uuid PRIMARY KEY,  -- must equal auth.uid()
   business_name                 text NOT NULL,
   contact_name                  text NOT NULL,
   contact_email                 text NOT NULL,
@@ -60,14 +59,14 @@ CREATE TABLE contractors (
     CHECK (tier IN ('starter', 'growth', 'pro')),
   monthly_sms_cap               int DEFAULT 50,
   sms_used_this_month           int DEFAULT 0,
-  fcm_token                     text,   -- Firebase Cloud Messaging device token
+  locale                        text NOT NULL DEFAULT 'fi'
+    CHECK (locale IN ('fi', 'en', 'pt')),
+  fcm_token                     text,
   stripe_customer_id            text,
   created_at                    timestamptz DEFAULT now(),
   updated_at                    timestamptz DEFAULT now()
 );
-COMMENT ON TABLE contractors IS 'Contractor accounts — each represents a home service business.';
 
--- leads — missed call lifecycle
 CREATE TABLE leads (
   id                        uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   contractor_id             uuid NOT NULL REFERENCES contractors(id) ON DELETE CASCADE,
@@ -85,6 +84,8 @@ CREATE TABLE leads (
       'booking_sent', 'booked', 'completed', 'followed_up',
       'dnr_alert', 'no_consent'
     )),
+  locale                    text NOT NULL DEFAULT 'fi'
+    CHECK (locale IN ('fi', 'en', 'pt')),
   consent_given             boolean DEFAULT false,
   consent_given_at          timestamptz,
   booking_time              timestamptz,
@@ -95,26 +96,21 @@ CREATE TABLE leads (
   satisfaction_score        int
     CHECK (satisfaction_score IS NULL OR (satisfaction_score >= 1 AND satisfaction_score <= 5)),
   satisfaction_feedback     text,
-  notes                     text,   -- contractor-editable notes
+  notes                     text,
   called_during_after_hours boolean DEFAULT false,
   created_at                timestamptz DEFAULT now(),
   updated_at                timestamptz DEFAULT now()
 );
-COMMENT ON TABLE leads IS 'Missed-call leads — each row is one caller who did not reach the contractor.';
 
--- messages — SMS conversation log
 CREATE TABLE messages (
   id                  uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   lead_id             uuid NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
-  direction           text NOT NULL
-    CHECK (direction IN ('inbound', 'outbound')),
+  direction           text NOT NULL CHECK (direction IN ('inbound', 'outbound')),
   body                text NOT NULL,
   twilio_message_sid  text,
   sent_at             timestamptz DEFAULT now()
 );
-COMMENT ON TABLE messages IS 'SMS conversation log — every message sent to or received from a lead.';
 
--- scheduled_tasks — deferred jobs
 CREATE TABLE scheduled_tasks (
   id          uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   lead_id     uuid NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
@@ -124,9 +120,7 @@ CREATE TABLE scheduled_tasks (
   executed    boolean DEFAULT false,
   created_at  timestamptz DEFAULT now()
 );
-COMMENT ON TABLE scheduled_tasks IS 'Deferred tasks — the cron runner picks these up when execute_at <= now().';
 
--- audit_log — GDPR compliance
 CREATE TABLE audit_log (
   id            uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   action        text NOT NULL,
@@ -135,9 +129,7 @@ CREATE TABLE audit_log (
   performed_by  text DEFAULT 'system',
   performed_at  timestamptz DEFAULT now()
 );
-COMMENT ON TABLE audit_log IS 'GDPR audit log — records data deletion and anonymization events without PII.';
 
--- job_costs — per-lead cost entries
 CREATE TABLE job_costs (
   id          uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   lead_id     uuid NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
@@ -145,7 +137,6 @@ CREATE TABLE job_costs (
   amount      decimal NOT NULL CHECK (amount > 0),
   created_at  timestamptz DEFAULT now()
 );
-COMMENT ON TABLE job_costs IS 'Per-lead cost entries — materials, labour, travel etc.';
 
 -- ============================================================================
 -- STEP 3: ROW LEVEL SECURITY
@@ -189,10 +180,10 @@ CREATE INDEX idx_scheduled_tasks_pending ON scheduled_tasks (execute_at, execute
 CREATE INDEX idx_job_costs_lead ON job_costs (lead_id);
 
 -- ============================================================================
--- STEP 5: AUTH TRIGGER
--- Auto-create a contractors row when a new user signs up
+-- STEP 5: FUNCTIONS
 -- ============================================================================
 
+-- Auth trigger: auto-create contractor row on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -201,20 +192,11 @@ SET search_path = ''
 AS $$
 BEGIN
   INSERT INTO public.contractors (
-    id,
-    business_name,
-    contact_name,
-    contact_email,
-    contact_phone,
-    twilio_phone_number
+    id, business_name, contact_name, contact_email, contact_phone, twilio_phone_number
   ) VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data ->> 'business_name', ''),
-    COALESCE(
-      NEW.raw_user_meta_data ->> 'full_name',
-      NEW.raw_user_meta_data ->> 'name',
-      ''
-    ),
+    COALESCE(NEW.raw_user_meta_data ->> 'full_name', NEW.raw_user_meta_data ->> 'name', ''),
     COALESCE(NEW.email, ''),
     '',
     ''
@@ -225,7 +207,6 @@ BEGIN
         WHEN public.contractors.contact_name = '' THEN EXCLUDED.contact_name
         ELSE public.contractors.contact_name
       END;
-
   RETURN NEW;
 END;
 $$;
@@ -235,10 +216,34 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
 
+-- Atomic SMS cap check-and-increment
+CREATE OR REPLACE FUNCTION public.increment_sms_usage(p_contractor_id uuid)
+RETURNS int
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_new_count int;
+BEGIN
+  UPDATE public.contractors
+  SET sms_used_this_month = sms_used_this_month + 1
+  WHERE id = p_contractor_id
+    AND sms_used_this_month < monthly_sms_cap
+  RETURNING sms_used_this_month INTO v_new_count;
+
+  IF NOT FOUND THEN
+    RETURN -1;
+  END IF;
+
+  RETURN v_new_count;
+END;
+$$;
+
 COMMIT;
 
 -- ============================================================================
 -- ✅ PROD SETUP COMPLETE
--- Tables, RLS, indexes, and auth trigger are in place.
+-- Tables, RLS, indexes, functions, and auth trigger are in place.
 -- No seed data — contractors are created via the signup flow.
 -- ============================================================================

@@ -282,15 +282,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                 children: [
                   // Back
                   if (currentStep > 0)
-                    Expanded(
-                      child: OutlinedButton.icon(
+                    OutlinedButton(
                         onPressed: () {
                           _goToStep(currentStep - 1);
                         },
-                        icon: const Icon(Icons.arrow_back_rounded, size: 18),
-                        label: const Text('Back'),
-                      ),
-                    )
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.arrow_back_rounded, size: 16),
+                            SizedBox(width: 4),
+                            Text('Back'),
+                          ],
+                        ),
+                      )
                   else
                     const Spacer(),
 

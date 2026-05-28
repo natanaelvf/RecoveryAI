@@ -11,7 +11,7 @@ type TemplateSet = {
   askIssue: (businessName: string) => string;
   askUrgency: () => string;
   askName: () => string;
-  bookingLink: (businessName: string, calendlyUrl: string) => string;
+  bookingLink: (businessName: string, calendlyUrl: string, urgency?: string) => string;
   bookingConfirmation: (businessName: string, bookingTime: string) => string;
   satisfactionFollowup: (businessName: string) => string;
   noConsent: () => string;
@@ -30,8 +30,19 @@ const TEMPLATES_EN: TemplateSet = {
   askName: () =>
     `Thanks! What's your name so we can address you properly?`,
 
-  bookingLink: (businessName, calendlyUrl) =>
-    `Thanks! Here's a link to book a time with ${businessName}: ${calendlyUrl}\nWe'll confirm once it's booked!`,
+  bookingLink: (businessName, calendlyUrl, urgency) => {
+    switch (urgency) {
+      case 'emergency':
+      case 'high':
+        return `⚡ ${businessName} will try to call you back ASAP. In the meantime, book the earliest available slot: ${calendlyUrl}\nWe'll confirm once it's booked!`;
+      case 'medium':
+        return `Thanks! Please book a time within the next 2-3 days with ${businessName}: ${calendlyUrl}\nWe'll confirm once it's booked!`;
+      case 'low':
+        return `Thanks! Book a time this week with ${businessName}: ${calendlyUrl}\nWe'll confirm once it's booked!`;
+      default:
+        return `Thanks! Here's a link to book a time with ${businessName}: ${calendlyUrl}\nWe'll confirm once it's booked!`;
+    }
+  },
 
   bookingConfirmation: (businessName, bookingTime) =>
     `Your appointment with ${businessName} is confirmed for ${bookingTime}. We look forward to helping you!`,
@@ -56,8 +67,19 @@ const TEMPLATES_FI: TemplateSet = {
   askName: () =>
     `Kiitos! Mikä on nimesi, jotta voimme puhutella sinua oikein?`,
 
-  bookingLink: (businessName, calendlyUrl) =>
-    `Kiitos! Tässä linkki ajanvaraukseen yrityksen ${businessName} kanssa: ${calendlyUrl}\nVahvistamme kun varaus on tehty!`,
+  bookingLink: (businessName, calendlyUrl, urgency) => {
+    switch (urgency) {
+      case 'emergency':
+      case 'high':
+        return `⚡ ${businessName} yrittää soittaa sinulle takaisin pian. Varaa ensimmäinen vapaa aika: ${calendlyUrl}\nVahvistamme kun varaus on tehty!`;
+      case 'medium':
+        return `Kiitos! Varaa aika seuraavan 2-3 päivän sisällä yrityksen ${businessName} kanssa: ${calendlyUrl}\nVahvistamme kun varaus on tehty!`;
+      case 'low':
+        return `Kiitos! Varaa sinulle sopiva aika tämän viikon aikana yrityksen ${businessName} kanssa: ${calendlyUrl}\nVahvistamme kun varaus on tehty!`;
+      default:
+        return `Kiitos! Tässä linkki ajanvaraukseen yrityksen ${businessName} kanssa: ${calendlyUrl}\nVahvistamme kun varaus on tehty!`;
+    }
+  },
 
   bookingConfirmation: (businessName, bookingTime) =>
     `Ajanvarauksesi yrityksen ${businessName} kanssa on vahvistettu ajankohtaan ${bookingTime}. Odotamme innolla palvelemistasi!`,
@@ -82,8 +104,19 @@ const TEMPLATES_PT: TemplateSet = {
   askName: () =>
     `Obrigado! Qual é o seu nome?`,
 
-  bookingLink: (businessName, calendlyUrl) =>
-    `Obrigado! Aqui está o link para agendar um horário com ${businessName}: ${calendlyUrl}\nConfirmaremos assim que o agendamento for feito!`,
+  bookingLink: (businessName, calendlyUrl, urgency) => {
+    switch (urgency) {
+      case 'emergency':
+      case 'high':
+        return `⚡ ${businessName} vai tentar ligar-lhe de volta em breve. Agende o primeiro horário disponível: ${calendlyUrl}\nConfirmaremos assim que o agendamento for feito!`;
+      case 'medium':
+        return `Obrigado! Agende um horário nos próximos 2-3 dias com ${businessName}: ${calendlyUrl}\nConfirmaremos assim que o agendamento for feito!`;
+      case 'low':
+        return `Obrigado! Agende um horário esta semana com ${businessName}: ${calendlyUrl}\nConfirmaremos assim que o agendamento for feito!`;
+      default:
+        return `Obrigado! Aqui está o link para agendar um horário com ${businessName}: ${calendlyUrl}\nConfirmaremos assim que o agendamento for feito!`;
+    }
+  },
 
   bookingConfirmation: (businessName, bookingTime) =>
     `Seu agendamento com ${businessName} está confirmado para ${bookingTime}. Estamos ansiosos para ajudá-lo!`,
@@ -216,7 +249,8 @@ export async function handleInboundSms(
     return;
   }
 
-  const T = getTemplates(lead.locale ?? contractor.locale ?? 'fi');
+  // SMS is always in the contractor's language (design rule)
+  const T = getTemplates(contractor.locale ?? 'fi');
 
   // Record inbound message
   await recordMessage(lead.id, 'inbound', body);
@@ -274,11 +308,13 @@ export async function handleInboundSms(
           .update({ urgency, updated_at: new Date().toISOString() })
           .eq('id', lead.id);
 
-        // Fix #19: If emergency + after-hours, send high-priority push immediately
-        if (urgency === 'emergency' && lead.called_during_after_hours) {
+        // Send high-priority push for emergency/urgent leads (regardless of hours)
+        if (urgency === 'emergency' || urgency === 'high') {
           await sendPushNotification(
             contractor.id,
-            '🚨 EMERGENCY Lead',
+            urgency === 'emergency'
+              ? '🚨 EMERGENCY — Call Back Now!'
+              : '⚡ Urgent Lead — Call Back Soon',
             `${lead.caller_phone}: ${lead.issue_description || 'Unknown issue'}`,
             { leadId: lead.id, priority: 'high' }
           );
@@ -305,8 +341,8 @@ export async function handleInboundSms(
         .update({ caller_name: body, updated_at: new Date().toISOString() })
         .eq('id', lead.id);
 
-      // Send booking link
-      const msg = T.bookingLink(contractor.business_name, contractor.calendly_url);
+      // Send urgency-aware booking link
+      const msg = T.bookingLink(contractor.business_name, contractor.calendly_url, lead.urgency);
       await sendAndRecord(lead, fromNumber, msg);
       await updateLeadStatus(lead.id, LeadStatus.BookingSent);
       break;
@@ -315,7 +351,7 @@ export async function handleInboundSms(
     // --- Booking sent: waiting for Calendly webhook, but user might reply ---
     case LeadStatus.BookingSent: {
       // Re-send the booking link if they reply while waiting
-      const msg = T.bookingLink(contractor.business_name, contractor.calendly_url);
+      const msg = T.bookingLink(contractor.business_name, contractor.calendly_url, lead.urgency);
       await sendAndRecord(lead, fromNumber, msg);
       break;
     }
@@ -372,7 +408,8 @@ export async function initiateConsentSms(
   lead: Lead,
   contractor: Contractor
 ): Promise<void> {
-  const T = getTemplates(lead.locale ?? contractor.locale ?? 'fi');
+  // SMS is always in the contractor's language (design rule)
+  const T = getTemplates(contractor.locale ?? 'fi');
   const sent = await sendAndRecord(lead, contractor.twilio_phone_number,
     T.consentRequest(contractor.business_name));
 

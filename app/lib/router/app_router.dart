@@ -106,6 +106,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return hasCompletedOnboarding ? '/dashboard' : '/onboarding';
       }
 
+      // Logged in, onboarding complete, still on onboarding → go to dashboard
+      if (isLoggedIn && hasCompletedOnboarding && isOnboardingRoute) {
+        return '/dashboard';
+      }
+
       // Logged in, onboarding not complete, not on onboarding → force onboarding
       if (isLoggedIn && !hasCompletedOnboarding && !isOnboardingRoute) {
         return '/onboarding';

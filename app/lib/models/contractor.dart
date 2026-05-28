@@ -53,11 +53,13 @@ class Contractor {
 
   /// Initials for avatar (e.g., "JV" from "Jukka Virtanen").
   String get initials {
-    final parts = contactName.split(' ');
-    if (parts.length >= 2) {
+    if (contactName.isEmpty) return '?';
+    final parts = contactName.trim().split(' ').where((p) => p.isNotEmpty).toList();
+    if (parts.length >= 2 && parts.first.isNotEmpty && parts.last.isNotEmpty) {
       return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
     }
-    return contactName.isNotEmpty ? contactName[0].toUpperCase() : '?';
+    final name = parts.isNotEmpty ? parts.first : contactName;
+    return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
 
   /// SMS usage as percentage (0.0 to 1.0).
