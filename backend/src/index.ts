@@ -24,6 +24,10 @@ import { runSmsReset } from './jobs/sms-reset';
 
 const app = express();
 
+// Trust Fly.io's reverse proxy so express-rate-limit reads the correct client IP
+// from X-Forwarded-For instead of throwing ERR_ERL_UNEXPECTED_X_FORWARDED_FOR.
+app.set('trust proxy', 1);
+
 // --- Middleware ---
 app.use(helmet());
 
